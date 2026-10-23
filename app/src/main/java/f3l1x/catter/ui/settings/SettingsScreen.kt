@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.BuildConfig
 import io.tabler.icons.TablerIcons
 
 private const val GITHUB_URL = "https://github.com/xzyyysh/catter"
@@ -77,7 +78,7 @@ private fun AboutCard() {
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "v1.0",
+                    text = "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

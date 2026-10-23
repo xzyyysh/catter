@@ -68,6 +68,22 @@ object TablerIcons {
         )
     }
 
+    val X: ImageVector by lazy {
+        tablerIcon(
+            "Tabler.X",
+            "M18 6l-12 12",
+            "M6 6l12 12",
+        )
+    }
+
+    val Youtube: ImageVector by lazy {
+        tablerIcon(
+            "Tabler.Youtube",
+            "M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8",
+            "M10 9l5 3l-5 3l0 -6",
+        )
+    }
+
     val Cat: ImageVector by lazy {
         tablerIcon(
             "Tabler.Cat",
