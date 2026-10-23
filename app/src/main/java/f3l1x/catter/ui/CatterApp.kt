@@ -1,14 +1,17 @@
 package f3l1x.catter.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -60,42 +63,59 @@ private enum class CatterDestination(val label: String, val icon: ImageVector) {
 @Composable
 fun CatterApp() {
     var current by rememberSaveable { mutableStateOf(CatterDestination.Home) }
+    var appeared by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { appeared = true }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        AnimatedContent(
-            targetState = current,
-            transitionSpec = {
-                val forward = targetState.ordinal > initialState.ordinal
-                val direction = if (forward) 1 else -1
-                (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
-                    slideInHorizontally(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) {
-                        direction * it / 6
-                    }) togetherWith
-                    (fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
-                        slideOutHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) {
-                            -direction * it / 6
-                        })
-            },
-            label = "catter_content",
-        ) { destination ->
-            when (destination) {
-                CatterDestination.Home -> HomeScreen()
-                CatterDestination.Settings -> SettingsScreen()
+        AnimatedVisibility(
+            visible = appeared,
+            enter = fadeIn(tween(420)) + slideInVertically(tween(480)) { it / 32 },
+            label = "content_entrance",
+        ) {
+            AnimatedContent(
+                targetState = current,
+                transitionSpec = {
+                    val forward = targetState.ordinal > initialState.ordinal
+                    val direction = if (forward) 1 else -1
+                    (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                        slideInHorizontally(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) {
+                            direction * it / 6
+                        }) togetherWith
+                        (fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
+                            slideOutHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) {
+                                -direction * it / 6
+                            })
+                },
+                label = "catter_content",
+            ) { destination ->
+                when (destination) {
+                    CatterDestination.Home -> HomeScreen()
+                    CatterDestination.Settings -> SettingsScreen()
+                }
             }
         }
 
-        FloatingNavigationBar(
-            selected = current,
-            onSelect = { current = it },
+        AnimatedVisibility(
+            visible = appeared,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+            ) { it },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
-        )
+            label = "bottom_bar_entrance",
+        ) {
+            FloatingNavigationBar(
+                selected = current,
+                onSelect = { current = it },
+            )
+        }
     }
 }
 

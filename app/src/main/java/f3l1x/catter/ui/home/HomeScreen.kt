@@ -6,12 +6,19 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -98,8 +105,13 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     var messageIsError by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf<VideoDetails?>(null) }
+    var shownDetails by remember { mutableStateOf<VideoDetails?>(null) }
     var downloading by remember { mutableStateOf<Quality?>(null) }
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
+
+    LaunchedEffect(details) {
+        if (details != null) shownDetails = details
+    }
 
     fun performDownload(quality: Quality) {
         val current = details ?: return
@@ -215,6 +227,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         if (!pasted.isNullOrEmpty()) {
                             Logger.d("pasted link: ${pasted.take(40)}")
                             url = pasted
+                            submit()
                         }
                     }
                 },
@@ -249,23 +262,40 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            details?.let { video ->
-                Spacer(Modifier.height(12.dp))
-                ItemDetails(
-                    details = video,
-                    downloading = downloading,
-                    onSelect = { quality ->
-                        val needsPermission = Downloader.requiresLegacyPermission &&
-                            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-                            PackageManager.PERMISSION_GRANTED
-                        if (needsPermission) {
-                            requestedQuality = quality
-                            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        } else {
-                            performDownload(quality)
-                        }
-                    },
-                )
+            AnimatedVisibility(
+                visible = details != null,
+                enter = fadeIn(tween(220)) +
+                    expandVertically(
+                        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow),
+                        expandFrom = Alignment.Top,
+                    ) +
+                    slideInVertically(tween(260)) { it / 12 },
+                exit = fadeOut(tween(140)) +
+                    shrinkVertically(
+                        animationSpec = tween(200),
+                        shrinkTowards = Alignment.Top,
+                    ) +
+                    slideOutVertically(tween(200)) { it / 16 },
+                label = "item_details",
+            ) {
+                shownDetails?.let { video ->
+                    ItemDetails(
+                        details = video,
+                        downloading = downloading,
+                        onSelect = { quality ->
+                            val needsPermission = Downloader.requiresLegacyPermission &&
+                                context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                                PackageManager.PERMISSION_GRANTED
+                            if (needsPermission) {
+                                requestedQuality = quality
+                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            } else {
+                                performDownload(quality)
+                            }
+                        },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
             }
 
             Spacer(Modifier.height(12.dp))
