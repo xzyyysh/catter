@@ -1,5 +1,6 @@
 package f3l1x.catter.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,9 +21,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import io.tabler.icons.TablerIcons
+
+private const val GITHUB_URL = "https://github.com/xzyyysh/catter"
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
@@ -44,6 +49,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AboutCard() {
+    val uriHandler = LocalUriHandler.current
+
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -90,14 +97,22 @@ private fun AboutCard() {
                 icon = TablerIcons.Github,
                 label = "GitHub",
                 value = "xzyyysh/catter",
+                onClick = { uriHandler.openUri(GITHUB_URL) },
             )
         }
     }
 }
 
 @Composable
-private fun AboutRow(icon: ImageVector, label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun AboutRow(icon: ImageVector, label: String, value: String, onClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
@@ -114,7 +129,11 @@ private fun AboutRow(icon: ImageVector, label: String, value: String) {
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (onClick != null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
             )
         }
     }

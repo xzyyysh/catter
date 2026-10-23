@@ -42,7 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -107,9 +107,12 @@ private fun FloatingNavigationBar(
 ) {
     val density = LocalDensity.current
     val itemBounds = remember { mutableStateMapOf<CatterDestination, Rect>() }
+    val containerBounds = remember { mutableStateOf(Rect.Zero) }
     val indicator = remember { Animatable(Rect.Zero, Rect.VectorConverter) }
     var indicatorReady by remember { mutableStateOf(false) }
-    val targetBounds = itemBounds[selected]
+
+    val origin = containerBounds.value.topLeft
+    val targetBounds = itemBounds[selected]?.translate(-origin.x, -origin.y)
 
     LaunchedEffect(targetBounds) {
         val target = targetBounds ?: return@LaunchedEffect
@@ -133,7 +136,11 @@ private fun FloatingNavigationBar(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shadowElevation = 8.dp,
     ) {
-        Box {
+        Box(
+            modifier = Modifier
+                .padding(6.dp)
+                .onGloballyPositioned { containerBounds.value = it.boundsInRoot() },
+        ) {
             if (indicatorReady) {
                 val rect = indicator.value
                 Box(
@@ -149,7 +156,6 @@ private fun FloatingNavigationBar(
             }
 
             Row(
-                modifier = Modifier.padding(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -185,7 +191,7 @@ private fun FloatingNavigationItem(
 
     Row(
         modifier = Modifier
-            .onGloballyPositioned { onBoundsChange(it.boundsInParent()) }
+            .onGloballyPositioned { onBoundsChange(it.boundsInRoot()) }
             .clip(RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
