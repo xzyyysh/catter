@@ -1,8 +1,10 @@
 package f3l1x.catter.service
 
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -84,8 +86,10 @@ object Downloader {
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
 
+        val displayName = uniqueMediaName(resolver, collection, fileName)
+
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, quality.mimeType)
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
@@ -115,7 +119,44 @@ object Downloader {
             throw throwable
         }
 
-        return "${Environment.DIRECTORY_DOWNLOADS}/$fileName"
+        return "${Environment.DIRECTORY_DOWNLOADS}/$displayName"
+    }
+
+    private fun uniqueMediaName(
+        resolver: ContentResolver,
+        collection: Uri,
+        fileName: String,
+    ): String {
+        val base = fileName.substringBeforeLast('.')
+        val extension = fileName.substringAfterLast('.', "")
+
+        var index = 1
+        var candidate = fileName
+        while (mediaNameExists(resolver, collection, candidate)) {
+            candidate = if (extension.isEmpty()) "$base ($index)" else "$base ($index).$extension"
+            index++
+        }
+
+        if (candidate != fileName) Logger.d("duplicate name, using: $candidate")
+        return candidate
+    }
+
+    private fun mediaNameExists(
+        resolver: ContentResolver,
+        collection: Uri,
+        displayName: String,
+    ): Boolean = runCatching {
+        val projection = arrayOf(MediaStore.MediaColumns._ID)
+        val selection =
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+        val arguments = arrayOf(displayName, "${Environment.DIRECTORY_DOWNLOADS}/")
+
+        resolver.query(collection, projection, selection, arguments, null)?.use { cursor ->
+            cursor.count > 0
+        } ?: false
+    }.getOrElse {
+        Logger.w("name lookup failed, relying on provider: $displayName", it)
+        false
     }
 
     private fun saveToPublicDirectory(

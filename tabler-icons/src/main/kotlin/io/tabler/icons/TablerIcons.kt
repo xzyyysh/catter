@@ -10,108 +10,58 @@ import androidx.compose.ui.unit.dp
 
 object TablerIcons {
 
-    val Home: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Home",
-            "M5 12l-2 0l9 -9l9 9l-2 0",
-            "M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7",
-            "M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6",
-        )
+    private val pathData: Map<String, List<String>> by lazy {
+        val target = HashMap<String, List<String>>(6000)
+        loadCatalog1(target)
+        loadCatalog2(target)
+        loadCatalog3(target)
+        loadCatalog4(target)
+        loadCatalog5(target)
+        loadCatalog6(target)
+        loadCatalog7(target)
+        loadCatalog8(target)
+        target
     }
 
-    val Settings: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Settings",
-            "M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065",
-            "M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0",
-        )
+    private val cache = HashMap<String, ImageVector>()
+
+    val names: Set<String> get() = pathData.keys
+
+    operator fun get(name: String): ImageVector = synchronized(cache) {
+        cache[name] ?: build(name).also { cache[name] = it }
     }
 
-    val InfoCircle: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.InfoCircle",
-            "M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0",
-            "M12 9h.01",
-            "M11 12h1v4h1",
-        )
-    }
+    val Home: ImageVector get() = get("home")
+    val Settings: ImageVector get() = get("settings")
+    val InfoCircle: ImageVector get() = get("info-circle")
+    val Cat: ImageVector get() = get("cat")
+    val Github: ImageVector get() = get("brand-github")
+    val User: ImageVector get() = get("user")
+    val Link: ImageVector get() = get("link")
+    val Clipboard: ImageVector get() = get("clipboard")
+    val X: ImageVector get() = get("x")
+    val Youtube: ImageVector get() = get("brand-youtube")
 
-    val Github: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Github",
-            "M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5",
-        )
-    }
+    private fun build(name: String): ImageVector {
+        val paths = pathData[name]
+            ?: throw IllegalArgumentException("Unknown Tabler icon: $name")
 
-    val User: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.User",
-            "M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0",
-            "M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2",
-        )
-    }
-
-    val Link: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Link",
-            "M9 15l6 -6",
-            "M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464",
-            "M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463",
-        )
-    }
-
-    val Clipboard: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Clipboard",
-            "M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2",
-            "M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2",
-        )
-    }
-
-    val X: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.X",
-            "M18 6l-12 12",
-            "M6 6l12 12",
-        )
-    }
-
-    val Youtube: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Youtube",
-            "M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8",
-            "M10 9l5 3l-5 3l0 -6",
-        )
-    }
-
-    val Cat: ImageVector by lazy {
-        tablerIcon(
-            "Tabler.Cat",
-            "M20 3v10a8 8 0 1 1 -16 0v-10l3.432 3.432a7.963 7.963 0 0 1 4.568 -1.432c1.769 0 3.403 .574 4.728 1.546l3.272 -3.546",
-            "M2 16h5l-4 4",
-            "M22 16h-5l4 4",
-            "M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0",
-            "M9 11v.01",
-            "M15 11v.01",
-        )
+        return ImageVector.Builder(
+            name = "Tabler.$name",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            paths.forEach { data ->
+                addPath(
+                    pathData = addPathNodes(data),
+                    stroke = SolidColor(Color.Black),
+                    strokeLineWidth = 2f,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                )
+            }
+        }.build()
     }
 }
-
-private fun tablerIcon(name: String, vararg paths: String): ImageVector =
-    ImageVector.Builder(
-        name = name,
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f,
-    ).apply {
-        paths.forEach { pathData ->
-            addPath(
-                pathData = addPathNodes(pathData),
-                stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round,
-            )
-        }
-    }.build()
