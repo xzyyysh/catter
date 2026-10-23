@@ -68,6 +68,7 @@ import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.ItemDetails
+import f3l1x.catter.util.Haptics
 import f3l1x.catter.util.Logger
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
@@ -98,19 +99,40 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     var loading by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf<VideoDetails?>(null) }
     var downloading by remember { mutableStateOf<Quality?>(null) }
-    var pendingDownload by remember { mutableStateOf<Quality?>(null) }
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
+
+    fun performDownload(quality: Quality) {
+        val current = details ?: return
+        if (downloading != null) return
+        scope.launch {
+            downloading = quality
+            Logger.d("download start: ${quality.name}")
+            runCatching {
+                val ticket = YouTube.ticket(current.id, quality)
+                Downloader.save(context, ticket, quality, current.title, current.author)
+            }.onSuccess {
+                Haptics.lightSuccess(context)
+                message = "Saved to Download"
+                messageIsError = false
+            }.onFailure { throwable ->
+                message = throwable.message ?: "Download failed"
+                messageIsError = true
+            }
+            downloading = null
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) {
-            pendingDownload = requestedQuality
-        } else {
+        val quality = requestedQuality
+        requestedQuality = null
+        if (granted && quality != null) {
+            performDownload(quality)
+        } else if (!granted) {
             message = "Storage permission is required"
             messageIsError = true
         }
-        requestedQuality = null
     }
 
     LaunchedEffect(message) {
@@ -118,25 +140,6 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             delay(3200)
             message = null
         }
-    }
-
-    LaunchedEffect(pendingDownload) {
-        val quality = pendingDownload ?: return@LaunchedEffect
-        val current = details ?: return@LaunchedEffect
-        pendingDownload = null
-        downloading = quality
-        Logger.d("download selected: ${quality.name}")
-        runCatching {
-            val ticket = YouTube.ticket(current.id, quality)
-            Downloader.save(context, ticket, quality, current.title, current.author)
-        }.onSuccess {
-            message = "Saved to Download"
-            messageIsError = false
-        }.onFailure { throwable ->
-            message = throwable.message ?: "Download failed"
-            messageIsError = true
-        }
-        downloading = null
     }
 
     fun submit() {
@@ -153,7 +156,10 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         scope.launch {
             loading = true
             runCatching { YouTube.details(videoId) }
-                .onSuccess { details = it }
+                .onSuccess { loaded ->
+                    details = loaded
+                    scope.launch { YouTube.prefetchKey(videoId) }
+                }
                 .onFailure {
                     details = null
                     message = "Could not load this video"
@@ -256,7 +262,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                             requestedQuality = quality
                             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         } else {
-                            pendingDownload = quality
+                            performDownload(quality)
                         }
                     },
                 )

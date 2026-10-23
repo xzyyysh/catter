@@ -1,6 +1,7 @@
 package f3l1x.catter.service
 
 import android.net.Uri
+import android.os.SystemClock
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,6 +63,7 @@ object YouTube {
         "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
 
     private const val DETAILS_TTL_MS = 5 * 60 * 1000L
+    private const val KEY_TTL_MS = 5 * 60 * 1000L
     private const val TICKET_FALLBACK_TTL_MS = 60 * 1000L
     private const val TICKET_SAFETY_MS = 20 * 1000L
 
@@ -79,6 +81,7 @@ object YouTube {
     private val idPattern = Regex("^[A-Za-z0-9_-]{11}$")
 
     private val detailsCache = ConcurrentHashMap<String, Cached<VideoDetails>>()
+    private val keyCache = ConcurrentHashMap<String, Cached<String>>()
     private val ticketCache = ConcurrentHashMap<String, Cached<DownloadTicket>>()
 
     internal val apiHeaders: Map<String, String>
@@ -138,6 +141,12 @@ object YouTube {
         }
     }
 
+    suspend fun prefetchKey(id: String) = withContext(Dispatchers.IO) {
+        runCatching { keyFor(id) }
+            .onFailure { Logger.w("key prefetch failed: $id", it) }
+        Unit
+    }
+
     suspend fun ticket(id: String, quality: Quality): DownloadTicket = withContext(Dispatchers.IO) {
         val cacheKey = "$id:${quality.name}"
         val now = System.currentTimeMillis()
@@ -148,35 +157,56 @@ object YouTube {
 
         Logger.d("ticket request: $cacheKey")
         try {
-            val keyBody = httpGet("$KEY_ENDPOINT?id=$id", apiHeaders)
-            val key = JSONObject(keyBody).optString("key")
-            if (key.isBlank()) throw IOException("Converter key unavailable")
+            val ticket = runCatching { convert(id, quality, keyFor(id)) }
+                .getOrElse { failure ->
+                    Logger.w("convert failed, refreshing key: $cacheKey", failure)
+                    keyCache.remove(id)
+                    convert(id, quality, keyFor(id))
+                }
 
-            val form = listOf(
-                "link" to "https://youtu.be/$id",
-                "format" to quality.format,
-                "audioBitrate" to quality.audioBitrate.toString(),
-                "videoQuality" to quality.videoQuality.toString(),
-                "filenameStyle" to "pretty",
-                "vCodec" to "h264",
-            ).joinToString("&") { (name, value) -> "$name=${URLEncoder.encode(value, "UTF-8")}" }
-
-            val body = httpPost(CONVERT_ENDPOINT, form, apiHeaders + ("key" to key))
-            val json = JSONObject(body)
-            if (json.optBoolean("error")) {
-                throw IOException(json.optString("errorMsg").ifBlank { "Conversion failed" })
-            }
-
-            val url = json.optString("url")
-            if (url.isBlank()) throw IOException("No download url returned")
-
-            val ticket = DownloadTicket(url = url, fileName = json.optString("filename"))
-            ticketCache[cacheKey] = Cached(ticket, expiryOf(url))
+            ticketCache[cacheKey] = Cached(ticket, expiryOf(ticket.url))
             ticket
         } catch (throwable: Throwable) {
             Logger.e("ticket failed: $cacheKey", throwable)
             throw throwable
         }
+    }
+
+    private fun keyFor(id: String): String {
+        val now = System.currentTimeMillis()
+        keyCache[id]?.takeIf { it.expiresAt > now }?.let { cached ->
+            Logger.d("key cache hit: $id")
+            return cached.value
+        }
+
+        val body = httpGet("$KEY_ENDPOINT?id=$id", apiHeaders)
+        val key = JSONObject(body).optString("key")
+        if (key.isBlank()) throw IOException("Converter key unavailable")
+
+        keyCache[id] = Cached(key, now + KEY_TTL_MS)
+        return key
+    }
+
+    private fun convert(id: String, quality: Quality, key: String): DownloadTicket {
+        val form = listOf(
+            "link" to "https://youtu.be/$id",
+            "format" to quality.format,
+            "audioBitrate" to quality.audioBitrate.toString(),
+            "videoQuality" to quality.videoQuality.toString(),
+            "filenameStyle" to "pretty",
+            "vCodec" to "h264",
+        ).joinToString("&") { (name, value) -> "$name=${URLEncoder.encode(value, "UTF-8")}" }
+
+        val body = httpPost(CONVERT_ENDPOINT, form, apiHeaders + ("key" to key))
+        val json = JSONObject(body)
+        if (json.optBoolean("error")) {
+            throw IOException(json.optString("errorMsg").ifBlank { "Conversion failed" })
+        }
+
+        val url = json.optString("url")
+        if (url.isBlank()) throw IOException("No download url returned")
+
+        return DownloadTicket(url = url, fileName = json.optString("filename"))
     }
 
     private fun expiryOf(url: String): Long {
@@ -196,6 +226,8 @@ object YouTube {
 
     private fun request(url: String, method: String, body: String?, headers: Map<String, String>): String {
         val shortUrl = url.substringBefore('?')
+        val startedAt = SystemClock.elapsedRealtime()
+
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 15_000
@@ -210,17 +242,26 @@ object YouTube {
         }
 
         try {
+            connection.connect()
+            val connectedAt = SystemClock.elapsedRealtime()
+
             if (body != null) {
                 connection.outputStream.use { it.write(body.toByteArray()) }
             }
+
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            Logger.d("$method $shortUrl -> $code")
+            val finishedAt = SystemClock.elapsedRealtime()
+
+            Logger.d(
+                "$method $shortUrl -> $code " +
+                    "connect=${connectedAt - startedAt}ms read=${finishedAt - connectedAt}ms",
+            )
             if (code !in 200..299) throw IOException("HTTP $code: ${text.take(140)}")
             return text
         } catch (throwable: Throwable) {
-            Logger.e("$method $shortUrl failed", throwable)
+            Logger.e("$method $shortUrl failed after ${SystemClock.elapsedRealtime() - startedAt}ms", throwable)
             throw throwable
         } finally {
             connection.disconnect()

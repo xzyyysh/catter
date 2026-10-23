@@ -41,7 +41,7 @@ object Downloader {
 
             val location = connection.inputStream.use { input ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveToMediaStore(context, input, fileName, quality, title, artist)
+                    saveToMediaStore(context, input, fileName, quality)
                 } else {
                     saveToPublicDirectory(context, input, fileName, quality)
                 }
@@ -76,16 +76,9 @@ object Downloader {
         input: InputStream,
         fileName: String,
         quality: Quality,
-        title: String,
-        artist: String,
     ): String {
         val resolver = context.contentResolver
-        val collection = if (quality.isAudio) {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        } else {
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        }
-
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val displayName = uniqueMediaName(resolver, collection, fileName)
 
         val values = ContentValues().apply {
@@ -93,13 +86,6 @@ object Downloader {
             put(MediaStore.MediaColumns.MIME_TYPE, quality.mimeType)
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
-            if (quality.isAudio) {
-                put(MediaStore.Audio.Media.TITLE, title)
-                put(MediaStore.Audio.Media.ARTIST, artist)
-            } else {
-                put(MediaStore.Video.Media.TITLE, title)
-                put(MediaStore.Video.Media.ARTIST, artist)
-            }
         }
 
         val uri = resolver.insert(collection, values) ?: throw IOException("Cannot create media entry")
