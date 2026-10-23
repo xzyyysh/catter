@@ -51,6 +51,23 @@ object TablerIcons {
         )
     }
 
+    val Link: ImageVector by lazy {
+        tablerIcon(
+            "Tabler.Link",
+            "M9 15l6 -6",
+            "M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464",
+            "M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463",
+        )
+    }
+
+    val Clipboard: ImageVector by lazy {
+        tablerIcon(
+            "Tabler.Clipboard",
+            "M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2",
+            "M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2",
+        )
+    }
+
     val Cat: ImageVector by lazy {
         tablerIcon(
             "Tabler.Cat",
