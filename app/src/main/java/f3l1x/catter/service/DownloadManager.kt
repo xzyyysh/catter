@@ -46,6 +46,9 @@ object DownloadManager {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
         _tasks.update { it + Task(id, details.title, details.thumbnailUrl, quality.label) }
+        DownloadNotifications.ensureChannels(appContext)
+        runCatching { DownloadService.start(appContext) }
+            .onFailure { Logger.w("foreground service start failed", it) }
 
         scope.launch {
             val outcome = runCatching {
@@ -64,28 +67,34 @@ object DownloadManager {
                 }
             }
 
-            outcome.onSuccess { saved ->
-                DownloadStore.add(
-                    DownloadRecord(
-                        id = id,
-                        title = details.title,
-                        author = details.author,
-                        thumbnailUrl = details.thumbnailUrl,
-                        qualityLabel = quality.label,
-                        format = quality.format.uppercase(),
-                        mimeType = quality.mimeType,
-                        uri = saved.uri,
-                        fileName = saved.fileName,
-                        size = saved.size,
-                        createdAt = System.currentTimeMillis(),
-                    ),
+            val record = outcome.getOrNull()?.let { saved ->
+                DownloadRecord(
+                    id = id,
+                    title = details.title,
+                    author = details.author,
+                    thumbnailUrl = details.thumbnailUrl,
+                    qualityLabel = quality.label,
+                    format = quality.format.uppercase(),
+                    mimeType = quality.mimeType,
+                    uri = saved.uri,
+                    fileName = saved.fileName,
+                    size = saved.size,
+                    createdAt = System.currentTimeMillis(),
                 )
-            }.onFailure {
-                Logger.e("download failed: ${details.id}", it)
+            }
+
+            if (record != null) {
+                DownloadStore.add(record)
+                DownloadNotifications.completed(appContext, record)
+            } else {
+                val failure = outcome.exceptionOrNull()
+                Logger.e("download failed: ${details.id}", failure)
+                DownloadNotifications.failed(appContext, details.title, failure?.message)
             }
 
             _tasks.update { tasks -> tasks.filterNot { it.id == id } }
             _finished.emit(Finished(id = id, error = outcome.exceptionOrNull()?.message))
+            if (_tasks.value.isEmpty()) DownloadService.stop(appContext)
         }
 
         return id

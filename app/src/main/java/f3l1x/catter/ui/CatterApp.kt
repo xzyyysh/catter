@@ -1,5 +1,11 @@
 package f3l1x.catter.ui
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -52,9 +58,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.downloads.DownloadsScreen
@@ -71,6 +80,8 @@ private enum class CatterDestination(val label: String, val icon: ImageVector) {
 
 @Composable
 fun CatterApp() {
+    RequestStartupPermissions()
+
     var current by rememberSaveable { mutableStateOf(CatterDestination.Home) }
     var appeared by remember { mutableStateOf(false) }
 
@@ -201,6 +212,39 @@ private fun FloatingNavigationBar(
         }
     }
 }
+
+@Composable
+private fun RequestStartupPermissions() {
+    val preferences = LocalAppPreferences.current
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) {}
+
+    LaunchedEffect(Unit) {
+        if (preferences.permissionsRequested) return@LaunchedEffect
+
+        val missing = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !granted(context, Manifest.permission.POST_NOTIFICATIONS)
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                !granted(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            ) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+
+        preferences.markPermissionsRequested()
+        if (missing.isNotEmpty()) launcher.launch(missing.toTypedArray())
+    }
+}
+
+private fun granted(context: Context, permission: String): Boolean =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
 @Composable
 private fun NavDownloadProgress() {
