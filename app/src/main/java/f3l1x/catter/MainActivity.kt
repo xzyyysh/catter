@@ -16,11 +16,14 @@ import f3l1x.catter.data.ThemeMode
 import f3l1x.catter.ui.CatterApp
 import f3l1x.catter.ui.theme.CatterTheme
 import f3l1x.catter.ui.theme.Themes
+import f3l1x.catter.util.UpdateChecker
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         DownloadStore.init(applicationContext)
+        UpdateChecker.cleanup(applicationContext)
+        UpdateChecker.start(applicationContext)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),

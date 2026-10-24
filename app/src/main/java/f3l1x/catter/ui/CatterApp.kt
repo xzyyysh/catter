@@ -71,8 +71,10 @@ import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
+import f3l1x.catter.ui.components.UpdateDialog
 import f3l1x.catter.ui.settings.SettingsScreen
 import f3l1x.catter.util.Connectivity
+import f3l1x.catter.util.UpdateChecker
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -87,6 +89,7 @@ private enum class CatterDestination(val label: String, val icon: ImageVector) {
 fun CatterApp() {
     RequestStartupPermissions()
     RequireInternet()
+    UpdatePrompt()
 
     var current by rememberSaveable { mutableStateOf(CatterDestination.Home) }
     var appeared by remember { mutableStateOf(false) }
@@ -220,6 +223,22 @@ private fun FloatingNavigationBar(
             }
         }
     }
+}
+
+@Composable
+private fun UpdatePrompt() {
+    val context = LocalContext.current
+    val info by UpdateChecker.update.collectAsState()
+    val state by UpdateChecker.state.collectAsState()
+
+    val available = info ?: return
+
+    UpdateDialog(
+        info = available,
+        state = state,
+        onDismiss = { UpdateChecker.dismiss() },
+        onDownload = { UpdateChecker.download(context) },
+    )
 }
 
 @Composable
