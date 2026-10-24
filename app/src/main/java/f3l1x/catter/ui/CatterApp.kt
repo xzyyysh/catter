@@ -18,9 +18,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -33,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +55,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.service.DownloadManager
+import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
 import f3l1x.catter.ui.settings.SettingsScreen
@@ -196,6 +203,21 @@ private fun FloatingNavigationBar(
 }
 
 @Composable
+private fun NavDownloadProgress() {
+    val tasks by DownloadManager.tasks.collectAsState()
+    if (tasks.isEmpty()) return
+
+    ProgressLine(
+        fraction = null,
+        modifier = Modifier
+            .width(16.dp)
+            .fillMaxHeight(),
+        color = MaterialTheme.colorScheme.error,
+        trackColor = MaterialTheme.colorScheme.error.copy(alpha = 0.22f),
+    )
+}
+
+@Composable
 private fun FloatingNavigationItem(
     destination: CatterDestination,
     selected: Boolean,
@@ -220,12 +242,20 @@ private fun FloatingNavigationItem(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = destination.icon,
-            contentDescription = destination.label,
-            tint = contentColor,
-            modifier = Modifier.size(20.dp),
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = destination.icon,
+                contentDescription = destination.label,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.height(2.dp))
+            Box(modifier = Modifier.height(2.dp)) {
+                if (destination == CatterDestination.Downloads) {
+                    NavDownloadProgress()
+                }
+            }
+        }
         if (selected) {
             Spacer(Modifier.width(8.dp))
             Text(

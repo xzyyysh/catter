@@ -29,7 +29,7 @@ fun formatDate(timestamp: Long): String {
         now.get(Calendar.DAY_OF_YEAR) == then.get(Calendar.DAY_OF_YEAR)
 
     return if (sameDay) {
-        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+        val time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
         "Today, $time"
     } else {
         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))

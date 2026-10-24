@@ -1,7 +1,5 @@
 package f3l1x.catter.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,12 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,12 +30,6 @@ fun DownloadProgressCard(
     progress: DownloadProgress?,
     modifier: Modifier = Modifier,
 ) {
-    val fraction by animateFloatAsState(
-        targetValue = progress?.fraction ?: 0f,
-        animationSpec = tween(220),
-        label = "download_fraction",
-    )
-
     val current = progress
     val status = when {
         current == null -> "Preparing $qualityLabel"
@@ -95,27 +85,12 @@ fun DownloadProgressCard(
 
             Spacer(Modifier.height(10.dp))
 
-            if (current?.isDeterminate == true) {
-                LinearProgressIndicator(
-                    progress = { fraction },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    gapSize = 0.dp,
-                    drawStopIndicator = {},
-                )
-            } else {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    gapSize = 0.dp,
-                )
-            }
+            ProgressLine(
+                fraction = if (current?.isDeterminate == true) current.fraction else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp),
+            )
         }
     }
 }

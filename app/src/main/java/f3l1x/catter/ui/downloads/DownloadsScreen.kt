@@ -1,8 +1,5 @@
 package f3l1x.catter.ui.downloads
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +46,7 @@ import f3l1x.catter.service.DownloadFiles
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.service.DownloadProgress
 import f3l1x.catter.ui.components.CatterDialog
+import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.components.RemoteThumbnail
 import f3l1x.catter.util.Logger
 import f3l1x.catter.util.formatBytes
@@ -433,11 +430,6 @@ private fun ActiveDownloadRow(
     qualityLabel: String,
     progress: DownloadProgress?,
 ) {
-    val fraction by animateFloatAsState(
-        targetValue = progress?.fraction ?: 0f,
-        animationSpec = tween(220),
-        label = "active_fraction",
-    )
     val status = when {
         progress == null -> "Preparing $qualityLabel"
         progress.isDeterminate -> "${formatBytes(progress.bytes)} / ${formatBytes(progress.total)}"
@@ -489,27 +481,12 @@ private fun ActiveDownloadRow(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                if (progress?.isDeterminate == true) {
-                    LinearProgressIndicator(
-                        progress = { fraction },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        gapSize = 0.dp,
-                        drawStopIndicator = {},
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        gapSize = 0.dp,
-                    )
-                }
+                ProgressLine(
+                    fraction = if (progress?.isDeterminate == true) progress.fraction else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                )
             }
         }
     }
@@ -517,38 +494,13 @@ private fun ActiveDownloadRow(
 
 @Composable
 private fun EmptyState() {
-    Column(
+    Text(
+        text = "No downloads yet",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = TablerIcons["download"],
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "No downloads yet",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Everything you save will show up here",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
+    )
 }

@@ -40,7 +40,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,6 +79,7 @@ import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.DownloadProgressCard
 import f3l1x.catter.ui.components.ItemDetails
+import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.util.Haptics
 import f3l1x.catter.util.Logger
 import io.tabler.icons.TablerIcons
@@ -260,11 +260,12 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             )
 
             if (loading) {
-                LinearProgressIndicator(
+                ProgressLine(
+                    fraction = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                        .padding(top = 10.dp)
+                        .height(3.dp),
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 )
             }
