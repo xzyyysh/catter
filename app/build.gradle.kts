@@ -70,4 +70,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.documentfile)
+    implementation(libs.jaudiotagger)
 }

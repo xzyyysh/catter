@@ -29,6 +29,12 @@ class AppPreferences(context: Context) {
     var amoled: Boolean by mutableStateOf(prefs.getBoolean(KEY_AMOLED, false))
         private set
 
+    var saveTreeUri: String? by mutableStateOf(prefs.getString(KEY_SAVE_TREE, null))
+        private set
+
+    var saveTreeLabel: String? by mutableStateOf(prefs.getString(KEY_SAVE_LABEL, null))
+        private set
+
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
@@ -44,11 +50,22 @@ class AppPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_AMOLED, enabled).apply()
     }
 
+    fun updateSaveTree(uri: String?, label: String?) {
+        saveTreeUri = uri
+        saveTreeLabel = label
+        prefs.edit()
+            .putString(KEY_SAVE_TREE, uri)
+            .putString(KEY_SAVE_LABEL, label)
+            .apply()
+    }
+
     private companion object {
         const val PREFS_NAME = "catter_settings"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_AMOLED = "amoled"
+        const val KEY_SAVE_TREE = "save_tree"
+        const val KEY_SAVE_LABEL = "save_label"
     }
 }
 

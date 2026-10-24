@@ -69,9 +69,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.service.Downloader
 import f3l1x.catter.service.Quality
+import f3l1x.catter.service.SaveLocation
 import f3l1x.catter.service.VideoDetails
 import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
@@ -107,6 +109,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    val preferences = LocalAppPreferences.current
 
     var url by rememberSaveable { mutableStateOf("") }
     var showPlatforms by rememberSaveable { mutableStateOf(false) }
@@ -122,7 +125,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     fun startDownload(details: VideoDetails, quality: Quality) {
         if (card is HomeCard.Download) return
         Logger.d("download start: ${quality.name}")
-        val id = DownloadManager.start(context, details, quality)
+        val destination = SaveLocation.destination(preferences.saveTreeUri, quality)
+        val id = DownloadManager.start(context, details, quality, destination)
         card = HomeCard.Download(details, quality, id)
     }
 

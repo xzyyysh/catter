@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
 import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.util.Logger
 import java.io.File
@@ -14,12 +16,13 @@ object DownloadFiles {
 
     fun exists(context: Context, record: DownloadRecord): Boolean = runCatching {
         val uri = Uri.parse(record.uri)
-        if (uri.scheme == "content") {
-            context.contentResolver
+        when {
+            uri.scheme != "content" -> File(record.uri).exists()
+            DocumentsContract.isDocumentUri(context, uri) ->
+                DocumentFile.fromSingleUri(context, uri)?.exists() ?: false
+            else -> context.contentResolver
                 .query(uri, arrayOf(MediaStore.MediaColumns._ID), null, null, null)
                 ?.use { it.count > 0 } ?: false
-        } else {
-            File(record.uri).exists()
         }
     }.getOrElse {
         Logger.w("existence check failed: ${record.fileName}", it)
@@ -28,15 +31,18 @@ object DownloadFiles {
 
     fun delete(context: Context, record: DownloadRecord): Boolean = runCatching {
         val uri = Uri.parse(record.uri)
-        if (uri.scheme == "content") {
-            context.contentResolver.delete(uri, null, null) > 0
-        } else {
-            val file = File(record.uri)
-            val deleted = file.exists() && file.delete()
-            if (deleted) {
-                MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
+        when {
+            uri.scheme != "content" -> {
+                val file = File(record.uri)
+                val deleted = file.exists() && file.delete()
+                if (deleted) {
+                    MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
+                }
+                deleted
             }
-            deleted
+            DocumentsContract.isDocumentUri(context, uri) ->
+                DocumentsContract.deleteDocument(context.contentResolver, uri)
+            else -> context.contentResolver.delete(uri, null, null) > 0
         }
     }.getOrElse {
         Logger.w("delete failed: ${record.fileName}", it)

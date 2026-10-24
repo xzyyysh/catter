@@ -37,7 +37,12 @@ object DownloadManager {
     private val _finished = MutableSharedFlow<Finished>(extraBufferCapacity = 16)
     val finished: SharedFlow<Finished> = _finished.asSharedFlow()
 
-    fun start(context: Context, details: VideoDetails, quality: Quality): String {
+    fun start(
+        context: Context,
+        details: VideoDetails,
+        quality: Quality,
+        destination: Destination,
+    ): String {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
         _tasks.update { it + Task(id, details.title, details.thumbnailUrl, quality.label) }
@@ -51,6 +56,7 @@ object DownloadManager {
                     quality = quality,
                     title = details.title,
                     artist = details.author,
+                    destination = destination,
                 ) { stats ->
                     _tasks.update { tasks ->
                         tasks.map { if (it.id == id) it.copy(progress = stats) else it }
