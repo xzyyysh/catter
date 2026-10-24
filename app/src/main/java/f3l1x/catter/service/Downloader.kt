@@ -49,23 +49,25 @@ object Downloader {
     suspend fun save(
         context: Context,
         ticket: DownloadTicket,
-        quality: Quality,
+        name: String,
+        mimeType: String,
+        kind: MediaKind,
         title: String,
         artist: String,
         destination: Destination,
         signal: DownloadSignal,
         onProgress: ((DownloadProgress) -> Unit)? = null,
     ): SavedFile = withContext(Dispatchers.IO) {
-        val fileName = fileName(title, artist, quality)
-        val temp = File(context.cacheDir, "catter-${System.nanoTime()}.${quality.extension}")
+        val fileName = name
+        val temp = File(context.cacheDir, "catter-${System.nanoTime()}.${fileName.substringAfterLast('.')}")
         Logger.d("download start: $fileName")
 
         try {
             signal.throwIfCancelled()
             download(ticket.url, temp, signal, onProgress)
             signal.throwIfCancelled()
-            if (quality.isAudio) MediaTags.write(temp, title, artist)
-            publish(context, temp, fileName, quality, destination)
+            if (kind == MediaKind.Audio) MediaTags.write(temp, title, artist)
+            publish(context, temp, fileName, mimeType, destination)
         } catch (cancelled: DownloadCancelled) {
             throw cancelled
         } catch (throwable: Throwable) {
@@ -76,7 +78,7 @@ object Downloader {
         }
     }
 
-    fun fileName(title: String, artist: String, quality: Quality): String {
+    fun fileName(title: String, artist: String, label: String, extension: String): String {
         val base = buildString {
             append(title.ifBlank { "Catter" })
             if (artist.isNotBlank()) append(" - ").append(artist)
@@ -87,7 +89,8 @@ object Downloader {
             .trim()
             .trim('.')
             .take(80)
-        return "$clean (${quality.label}).${quality.extension}"
+        val suffix = if (label.isBlank()) "" else " ($label)"
+        return "$clean$suffix.$extension"
     }
 
     private fun download(
@@ -124,14 +127,14 @@ object Downloader {
         context: Context,
         source: File,
         fileName: String,
-        quality: Quality,
+        mimeType: String,
         destination: Destination,
     ): SavedFile = when (destination) {
         is Destination.Media -> saveToMediaStore(
             context = context,
             source = source,
             fileName = fileName,
-            quality = quality,
+            mimeType = mimeType,
             relativePath = destination.relativePath,
         )
 
@@ -139,7 +142,7 @@ object Downloader {
             context = context,
             source = source,
             fileName = fileName,
-            quality = quality,
+            mimeType = mimeType,
             treeUri = destination.treeUri,
             relativePath = destination.relativePath,
         )
@@ -148,7 +151,7 @@ object Downloader {
             context = context,
             source = source,
             fileName = fileName,
-            quality = quality,
+            mimeType = mimeType,
             directory = destination.directory,
         )
     }
@@ -157,7 +160,7 @@ object Downloader {
         context: Context,
         source: File,
         fileName: String,
-        quality: Quality,
+        mimeType: String,
         relativePath: String,
     ): SavedFile {
         val resolver = context.contentResolver
@@ -167,7 +170,7 @@ object Downloader {
 
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-            put(MediaStore.MediaColumns.MIME_TYPE, quality.mimeType)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
             put(MediaStore.MediaColumns.RELATIVE_PATH, relative)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
@@ -197,7 +200,7 @@ object Downloader {
         context: Context,
         source: File,
         fileName: String,
-        quality: Quality,
+        mimeType: String,
         treeUri: String,
         relativePath: String,
     ): SavedFile {
@@ -214,7 +217,7 @@ object Downloader {
             }
 
         val displayName = uniqueTreeName(directory, fileName)
-        val document = directory.createFile(quality.mimeType, displayName)
+        val document = directory.createFile(mimeType, displayName)
             ?: throw IOException("Cannot create file")
 
         try {
@@ -234,7 +237,7 @@ object Downloader {
         context: Context,
         source: File,
         fileName: String,
-        quality: Quality,
+        mimeType: String,
         directory: File,
     ): SavedFile {
         if (!directory.exists()) directory.mkdirs()
@@ -247,7 +250,7 @@ object Downloader {
         MediaScannerConnection.scanFile(
             context,
             arrayOf(file.absolutePath),
-            arrayOf(quality.mimeType),
+            arrayOf(mimeType),
             null,
         )
 

@@ -30,8 +30,7 @@ object DownloadManager {
 
     private class Request(
         val id: String,
-        val details: VideoDetails,
-        val quality: Quality,
+        val job: DownloadRequest,
         val destination: Destination,
         val signal: DownloadSignal = DownloadSignal(),
     )
@@ -45,20 +44,15 @@ object DownloadManager {
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
-    fun start(
-        context: Context,
-        details: VideoDetails,
-        quality: Quality,
-        destination: Destination,
-    ): String {
+    fun start(context: Context, request: DownloadRequest, destination: Destination): String {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
-        _tasks.update { it + Task(id, details.title, details.thumbnailUrl, quality.label) }
+        _tasks.update { it + Task(id, request.title, request.thumbnailUrl, request.label) }
         DownloadNotifications.ensureChannels(appContext)
         runCatching { DownloadService.start(appContext) }
             .onFailure { Logger.w("foreground service start failed", it) }
 
-        queue.addLast(Request(id, details, quality, destination))
+        queue.addLast(Request(id, request, destination))
         if (worker?.isActive != true) worker = scope.launch { drain(appContext) }
 
         return id
@@ -82,31 +76,35 @@ object DownloadManager {
         DownloadService.stop(context)
     }
 
-    private suspend fun run(context: Context, request: Request) {
+    private suspend fun run(context: Context, queued: Request) {
+        val job = queued.job
+
         try {
-            val ticket = YouTube.ticket(request.details.id, request.quality)
+            val ticket = job.resolve()
             val saved = Downloader.save(
                 context = context,
                 ticket = ticket,
-                quality = request.quality,
-                title = request.details.title,
-                artist = request.details.author,
-                destination = request.destination,
-                signal = request.signal,
+                name = job.fileName,
+                mimeType = job.mimeType,
+                kind = job.kind,
+                title = job.title,
+                artist = job.author,
+                destination = queued.destination,
+                signal = queued.signal,
             ) { stats ->
                 _tasks.update { tasks ->
-                    tasks.map { if (it.id == request.id) it.copy(progress = stats) else it }
+                    tasks.map { if (it.id == queued.id) it.copy(progress = stats) else it }
                 }
             }
 
             val record = DownloadRecord(
-                id = request.id,
-                title = request.details.title,
-                author = request.details.author,
-                thumbnailUrl = request.details.thumbnailUrl,
-                qualityLabel = request.quality.label,
-                format = request.quality.format.uppercase(),
-                mimeType = request.quality.mimeType,
+                id = queued.id,
+                title = job.title,
+                author = job.author,
+                thumbnailUrl = job.thumbnailUrl,
+                qualityLabel = job.label,
+                format = job.fileName.substringAfterLast('.', "").uppercase(),
+                mimeType = job.mimeType,
                 uri = saved.uri,
                 fileName = saved.fileName,
                 size = saved.size,
@@ -116,12 +114,12 @@ object DownloadManager {
             DownloadStore.add(record)
             DownloadNotifications.completed(context, record)
         } catch (cancelled: DownloadCancelled) {
-            Logger.d("download cancelled: ${request.details.id}")
+            Logger.d("download cancelled: ${job.title}")
         } catch (throwable: Throwable) {
-            Logger.e("download failed: ${request.details.id}", throwable)
-            DownloadNotifications.failed(context, request.details.title, throwable.message)
+            Logger.e("download failed: ${job.title}", throwable)
+            DownloadNotifications.failed(context, job.title, throwable.message)
         } finally {
-            _tasks.update { tasks -> tasks.filterNot { it.id == request.id } }
+            _tasks.update { tasks -> tasks.filterNot { it.id == queued.id } }
         }
     }
 

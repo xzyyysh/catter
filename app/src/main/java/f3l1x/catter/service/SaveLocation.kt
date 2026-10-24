@@ -15,9 +15,14 @@ object SaveLocation {
     const val BASE_FOLDER = "CatterApp"
     const val VIDEO_FOLDER = "videos"
     const val AUDIO_FOLDER = "audios"
+    const val PHOTO_FOLDER = "photos"
 
-    fun destination(treeUri: String?, quality: Quality): Destination {
-        val sub = if (quality.isAudio) AUDIO_FOLDER else VIDEO_FOLDER
+    fun destination(treeUri: String?, kind: MediaKind): Destination {
+        val sub = when (kind) {
+            MediaKind.Audio -> AUDIO_FOLDER
+            MediaKind.Video -> VIDEO_FOLDER
+            MediaKind.Photo, MediaKind.Gif -> PHOTO_FOLDER
+        }
 
         if (!treeUri.isNullOrBlank()) {
             return Destination.Tree(treeUri = treeUri, relativePath = "$BASE_FOLDER/$sub")

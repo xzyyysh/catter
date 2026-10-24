@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -69,14 +70,23 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
+import f3l1x.catter.service.DownloadRequest
+import f3l1x.catter.service.DownloadTicket
 import f3l1x.catter.service.Downloader
+import f3l1x.catter.service.Instagram
+import f3l1x.catter.service.InstagramItem
+import f3l1x.catter.service.InstagramPost
+import f3l1x.catter.service.Links
+import f3l1x.catter.service.MediaKind
 import f3l1x.catter.service.Quality
 import f3l1x.catter.service.SaveLocation
+import f3l1x.catter.service.Source
 import f3l1x.catter.service.VideoDetails
 import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.ItemDetails
+import f3l1x.catter.ui.components.PostDetails
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.util.Haptics
 import f3l1x.catter.util.Logger
@@ -99,6 +109,7 @@ private val RestFrame = GlitchFrame("e")
 private sealed interface HomeCard {
     data object Empty : HomeCard
     data class Details(val details: VideoDetails) : HomeCard
+    data class Post(val post: InstagramPost) : HomeCard
 }
 
 @Composable
@@ -117,7 +128,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
     var pendingId by remember { mutableStateOf<String?>(null) }
 
-    val hasDetails = card is HomeCard.Details
+    val hasCard = card !is HomeCard.Empty
 
     fun reset() {
         pendingId = null
@@ -126,13 +137,72 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         url = ""
     }
 
+    fun queue(request: DownloadRequest, kind: MediaKind) {
+        DownloadManager.start(context, request, SaveLocation.destination(preferences.saveTreeUri, kind))
+    }
+
     fun startDownload(details: VideoDetails, quality: Quality) {
         Logger.d("download queued: ${quality.name}")
-        val destination = SaveLocation.destination(preferences.saveTreeUri, quality)
-        DownloadManager.start(context, details, quality, destination)
+        val kind = if (quality.isAudio) MediaKind.Audio else MediaKind.Video
+        queue(
+            DownloadRequest(
+                title = details.title,
+                author = details.author,
+                thumbnailUrl = details.thumbnailUrl,
+                label = quality.label,
+                fileName = Downloader.fileName(details.title, details.author, quality.label, quality.extension),
+                mimeType = quality.mimeType,
+                kind = kind,
+                resolve = { YouTube.ticket(details.id, quality) },
+            ),
+            kind,
+        )
         Haptics.lightSuccess(context)
         reset()
         message = "Added to queue"
+        messageIsError = false
+    }
+
+    fun postRequest(post: InstagramPost, item: InstagramItem, index: Int): DownloadRequest {
+        val multi = post.items.size > 1
+        val video = item.kind == MediaKind.Video
+        val label = when {
+            video && multi -> "Video ${index + 1}"
+            video -> "Video"
+            multi -> "Photo ${index + 1}"
+            else -> "Photo"
+        }
+
+        return DownloadRequest(
+            title = post.title,
+            author = post.author,
+            thumbnailUrl = post.thumbnailUrl,
+            label = label,
+            fileName = Downloader.fileName(
+                title = post.author.ifBlank { "Instagram" },
+                artist = post.shortcode,
+                label = if (multi) "${index + 1}" else "",
+                extension = if (video) "mp4" else "jpg",
+            ),
+            mimeType = if (video) "video/mp4" else "image/jpeg",
+            kind = item.kind,
+            resolve = { DownloadTicket(item.url, "") },
+        )
+    }
+
+    fun startItem(post: InstagramPost, item: InstagramItem, index: Int) {
+        Logger.d("instagram queued: ${post.shortcode}")
+        queue(postRequest(post, item, index), item.kind)
+        Haptics.lightSuccess(context)
+        message = "Added to queue"
+        messageIsError = false
+    }
+
+    fun startAll(post: InstagramPost) {
+        post.items.forEachIndexed { index, item -> queue(postRequest(post, item, index), item.kind) }
+        Haptics.lightSuccess(context)
+        reset()
+        message = "${post.items.size} added to queue"
         messageIsError = false
     }
 
@@ -157,35 +227,60 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    suspend fun loadVideo(id: String) {
+        runCatching { YouTube.details(id) }
+            .onSuccess { details ->
+                if (pendingId != id) return@onSuccess
+                card = HomeCard.Details(details)
+                scope.launch { YouTube.prefetchKey(id) }
+            }
+            .onFailure {
+                if (pendingId != id) return@onFailure
+                card = HomeCard.Empty
+                message = "Could not load this video"
+                messageIsError = true
+            }
+    }
+
+    suspend fun loadPost(shortcode: String) {
+        runCatching { Instagram.post(shortcode) }
+            .onSuccess { post ->
+                if (pendingId != shortcode) return@onSuccess
+                if (post.items.size == 1) {
+                    startItem(post, post.items.first(), 0)
+                    reset()
+                } else {
+                    card = HomeCard.Post(post)
+                }
+            }
+            .onFailure {
+                if (pendingId != shortcode) return@onFailure
+                card = HomeCard.Empty
+                message = "Could not load this post"
+                messageIsError = true
+            }
+    }
+
     fun submit() {
         focusManager.clearFocus()
-        val videoId = YouTube.videoId(url)
-        if (videoId == null) {
+        val link = Links.parse(url)
+        if (link == null) {
             Logger.w("unsupported link")
             card = HomeCard.Empty
-            message = "Only YouTube links are supported"
+            message = "Unsupported link"
             messageIsError = true
             return
         }
-        Logger.d("resolve link: $videoId")
-        pendingId = videoId
+
+        Logger.d("resolve link: ${link.source.label} ${link.id}")
+        pendingId = link.id
         scope.launch {
             loading = true
-            runCatching { YouTube.details(videoId) }
-                .onSuccess { loaded ->
-                    if (pendingId == videoId) {
-                        card = HomeCard.Details(loaded)
-                        scope.launch { YouTube.prefetchKey(videoId) }
-                    }
-                }
-                .onFailure {
-                    if (pendingId == videoId) {
-                        card = HomeCard.Empty
-                        message = "Could not load this video"
-                        messageIsError = true
-                    }
-                }
-            if (pendingId == videoId) loading = false
+            when (link.source) {
+                Source.YouTube -> loadVideo(link.id)
+                Source.Instagram -> loadPost(link.id)
+            }
+            if (pendingId == link.id) loading = false
         }
     }
 
@@ -217,9 +312,9 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 onValueChange = { url = it },
                 placeholder = "Paste a link",
                 leadingIcon = TablerIcons.Link,
-                trailingIcon = if (hasDetails || loading) TablerIcons.X else TablerIcons.Clipboard,
+                trailingIcon = if (hasCard || loading) TablerIcons.X else TablerIcons.Clipboard,
                 onTrailingClick = {
-                    if (hasDetails || loading) {
+                    if (hasCard || loading) {
                         Logger.d("clear item")
                         message = null
                         reset()
@@ -298,6 +393,13 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         },
                         modifier = Modifier.padding(top = 12.dp),
                     )
+
+                    is HomeCard.Post -> PostDetails(
+                        post = current.post,
+                        onDownload = { item, index -> startItem(current.post, item, index) },
+                        onDownloadAll = { startAll(current.post) },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
                 }
             }
 
@@ -334,34 +436,49 @@ private fun SupportedPlatformsDialog(onDismissRequest: () -> Unit) {
         onDismissRequest = onDismissRequest,
     ) {
         Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = TablerIcons.Youtube,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "YouTube",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "MP4 · MP3",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        PlatformRow(
+            icon = TablerIcons.Youtube,
+            name = "YouTube + Music",
+            formats = "MP4 · MP3",
+        )
+        Spacer(Modifier.height(10.dp))
+        PlatformRow(
+            icon = TablerIcons["brand-instagram"],
+            name = "Instagram",
+            formats = "MP4 · JPG",
+        )
         Text(
             text = "More sources soon!",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
             modifier = Modifier.padding(top = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlatformRow(icon: ImageVector, name: String, formats: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = formats,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -10,10 +10,13 @@ Built with Kotlin and Jetpack Compose, Material 3 styling, and a minimal single 
 
 ## Features
 
-- YouTube is supported today, and more services may be added later
-- Video downloads in MP4 up to 1080p, audio in MP3 up to 320 kbps
+- YouTube, YouTube Music and Instagram are supported today, and more services may be added later
+- YouTube videos in MP4 up to 1080p, audio in MP3 up to 320 kbps
+- Instagram videos, photos and carousels in their original quality
+- Single Instagram posts download straight away, multi media posts show every item with a download all action
+- Sequential download queue with per item cancel, so you can keep pasting links while it works
 - Preview with title, author and thumbnail before downloading
-- Files saved to Downloads with clean names and duplicate handling
+- Files saved to Downloads with clean names, sorted into videos, audios and photos, with duplicate handling
 - Material You, AMOLED black, and system, light or dark themes
 
 ## Requirements
