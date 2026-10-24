@@ -1,5 +1,9 @@
 package f3l1x.catter.ui.downloads
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,14 +14,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -58,6 +65,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val LONG_ERROR = 90
+
 @Composable
 fun DownloadsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -65,12 +74,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
 
     val records by DownloadStore.records.collectAsState()
     val tasks by DownloadManager.tasks.collectAsState()
+    val failures by DownloadManager.failures.collectAsState()
 
     var existence by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var expandedId by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<DownloadRecord?>(null) }
     var confirmClearAll by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var failedDetails by remember { mutableStateOf<DownloadManager.Failure?>(null) }
 
     LaunchedEffect(records) {
         while (true) {
@@ -149,6 +160,17 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        if (failures.isNotEmpty()) {
+            item(key = "failed") { SectionLabel("Failed") }
+            items(failures, key = { "failure-${it.id}" }) { failure ->
+                FailedRow(
+                    failure = failure,
+                    onDetails = { failedDetails = failure },
+                    onDismiss = { DownloadManager.dismissFailure(failure.id) },
+                )
+            }
+        }
+
         if (records.isNotEmpty()) {
             item(key = "history") { SectionLabel("History") }
             items(records, key = { "record-${it.id}" }) { record ->
@@ -169,7 +191,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        if (tasks.isEmpty() && records.isEmpty()) {
+        if (tasks.isEmpty() && records.isEmpty() && failures.isEmpty()) {
             item(key = "empty") { EmptyState() }
         }
     }
@@ -255,6 +277,91 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    failedDetails?.let { failure ->
+        CatterDialog(
+            title = "Download failed",
+            onDismissRequest = { failedDetails = null },
+        ) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = failure.title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(10.dp))
+            ErrorBlock(
+                text = failure.message,
+                onCopy = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("download error", failure.message))
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorBlock(text: String, onCopy: () -> Unit) {
+    var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(1600)
+            copied = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (copied) "copied" else "error",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (copied) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable {
+                            onCopy()
+                            copied = true
+                        }
+                        .padding(4.dp),
+                ) {
+                    Icon(
+                        imageVector = TablerIcons.Clipboard,
+                        contentDescription = "Copy error",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState()),
             )
         }
     }
@@ -494,6 +601,86 @@ private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
                 Icon(
                     imageVector = TablerIcons.X,
                     contentDescription = "Cancel download",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FailedRow(
+    failure: DownloadManager.Failure,
+    onDetails: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RemoteThumbnail(
+                url = failure.thumbnailUrl,
+                modifier = Modifier
+                    .size(width = 76.dp, height = 44.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = failure.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = listOf(failure.qualityLabel, "Failed")
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                )
+                Text(
+                    text = failure.message,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            if (failure.message.length > LONG_ERROR) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onDetails)
+                        .padding(8.dp),
+                ) {
+                    Icon(
+                        imageVector = TablerIcons.InfoCircle,
+                        contentDescription = "Show full error",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onDismiss)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    imageVector = TablerIcons.X,
+                    contentDescription = "Dismiss",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )

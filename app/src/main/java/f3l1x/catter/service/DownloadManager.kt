@@ -28,6 +28,14 @@ object DownloadManager {
         val progress: DownloadProgress? = null,
     )
 
+    data class Failure(
+        val id: String,
+        val title: String,
+        val thumbnailUrl: String,
+        val qualityLabel: String,
+        val message: String,
+    )
+
     private class Request(
         val id: String,
         val job: DownloadRequest,
@@ -44,6 +52,9 @@ object DownloadManager {
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
+    private val _failures = MutableStateFlow<List<Failure>>(emptyList())
+    val failures: StateFlow<List<Failure>> = _failures.asStateFlow()
+
     fun start(context: Context, request: DownloadRequest, destination: Destination): String {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
@@ -56,6 +67,10 @@ object DownloadManager {
         if (worker?.isActive != true) worker = scope.launch { drain(appContext) }
 
         return id
+    }
+
+    fun dismissFailure(id: String) {
+        _failures.update { failures -> failures.filterNot { it.id == id } }
     }
 
     fun cancel(id: String) {
@@ -118,6 +133,15 @@ object DownloadManager {
         } catch (throwable: Throwable) {
             Logger.e("download failed: ${job.title}", throwable)
             DownloadNotifications.failed(context, job.title, throwable.message)
+            _failures.update { failures ->
+                failures + Failure(
+                    id = queued.id,
+                    title = job.title,
+                    thumbnailUrl = job.thumbnailUrl,
+                    qualityLabel = job.label,
+                    message = throwable.message ?: throwable.toString(),
+                )
+            }
         } finally {
             _tasks.update { tasks -> tasks.filterNot { it.id == queued.id } }
         }
