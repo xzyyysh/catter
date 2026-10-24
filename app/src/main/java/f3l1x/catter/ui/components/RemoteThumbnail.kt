@@ -26,23 +26,9 @@ import java.net.URL
 @Composable
 fun RemoteThumbnail(url: String, modifier: Modifier = Modifier) {
     var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    val candidates = remember(url) {
-        listOf(url, url.replace("maxresdefault", "hqdefault"))
-    }
 
     LaunchedEffect(url) {
-        bitmap = withContext(Dispatchers.IO) {
-            candidates.firstNotNullOfOrNull { candidate ->
-                runCatching {
-                    val connection = URL(candidate).openConnection() as HttpURLConnection
-                    connection.connectTimeout = 10_000
-                    connection.readTimeout = 10_000
-                    connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                }.onFailure {
-                    Logger.w("thumbnail failed: ${candidate.substringAfterLast('/')}", it)
-                }.getOrNull()
-            }
-        }
+        bitmap = withContext(Dispatchers.IO) { load(url) }
     }
 
     Box(
@@ -59,3 +45,28 @@ fun RemoteThumbnail(url: String, modifier: Modifier = Modifier) {
         }
     }
 }
+
+private fun load(url: String): ImageBitmap? {
+    val bitmap = candidates(url).firstNotNullOfOrNull { decode(it) }
+    if (bitmap == null) Logger.d("thumbnail unavailable: ${url.substringAfterLast('/')}")
+    return bitmap
+}
+
+private fun candidates(url: String): List<String> =
+    if (url.contains("maxresdefault")) {
+        listOf(url, url.replace("maxresdefault", "hqdefault"))
+    } else {
+        listOf(url)
+    }
+
+private fun decode(url: String): ImageBitmap? = runCatching {
+    val connection = URL(url).openConnection() as HttpURLConnection
+    try {
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
+        if (connection.responseCode !in 200..299) return@runCatching null
+        connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+    } finally {
+        connection.disconnect()
+    }
+}.getOrNull()

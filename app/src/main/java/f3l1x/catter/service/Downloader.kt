@@ -101,12 +101,18 @@ object Downloader {
             val code = connection.responseCode
             if (code !in 200..299) throw IOException("HTTP $code")
 
-            val total = connection.contentLengthLong.takeIf { it > 0L } ?: -1L
-            Logger.d("download size: $total")
+            val total = connection.contentLengthLong.takeIf { it > 0L }
+            Logger.d(
+                if (total != null) {
+                    "download size: $total bytes"
+                } else {
+                    "download size: unknown, converter streams chunked"
+                },
+            )
 
             connection.inputStream.use { input ->
                 target.outputStream().use { output ->
-                    copyWithProgress(input, output, total, signal, onProgress)
+                    copyWithProgress(input, output, total ?: -1L, signal, onProgress)
                 }
             }
         } finally {
