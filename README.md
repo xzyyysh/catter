@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="files/CatterBanner.png" width="75%" alt="Catter">
+</p>
+
 # Catter
 
 A small native media downloader for Android. Paste a link, pick a format, done.
