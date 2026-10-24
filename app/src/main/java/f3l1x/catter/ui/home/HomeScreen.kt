@@ -44,10 +44,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,19 +71,15 @@ import androidx.compose.ui.unit.dp
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.service.DownloadRequest
-import f3l1x.catter.service.DownloadTicket
 import f3l1x.catter.service.Downloader
-import f3l1x.catter.service.Instagram
-import f3l1x.catter.service.Links
 import f3l1x.catter.service.MediaItem
-import f3l1x.catter.service.MediaKind
 import f3l1x.catter.service.MediaPost
 import f3l1x.catter.service.Quality
+import f3l1x.catter.service.Requests
+import f3l1x.catter.service.ResolveState
+import f3l1x.catter.service.Resolver
 import f3l1x.catter.service.SaveLocation
-import f3l1x.catter.service.Source
-import f3l1x.catter.service.TikTok
 import f3l1x.catter.service.VideoDetails
-import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.ItemDetails
@@ -93,7 +89,6 @@ import f3l1x.catter.util.Haptics
 import f3l1x.catter.util.Logger
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 private val GlitchGlyphs = listOf("e", "é", "è", "ê", "ë", "ē", "ė", "ę", "ε", "е")
@@ -107,104 +102,49 @@ private data class GlitchFrame(
 
 private val RestFrame = GlitchFrame("e")
 
-private sealed interface HomeCard {
-    data object Empty : HomeCard
-    data class Details(val details: VideoDetails) : HomeCard
-    data class Post(val post: MediaPost) : HomeCard
+private fun cardKey(state: ResolveState): String = when (state) {
+    is ResolveState.Video -> "video"
+    is ResolveState.Post -> "post"
+    else -> "empty"
 }
 
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val scope = rememberCoroutineScope()
     val preferences = LocalAppPreferences.current
 
+    val state by Resolver.state.collectAsState()
     var url by rememberSaveable { mutableStateOf("") }
     var showPlatforms by rememberSaveable { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var messageIsError by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(false) }
-    var card by remember { mutableStateOf<HomeCard>(HomeCard.Empty) }
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
-    var pendingId by remember { mutableStateOf<String?>(null) }
 
-    val hasCard = card !is HomeCard.Empty
+    val loading = state is ResolveState.Loading
+    val hasCard = state is ResolveState.Video || state is ResolveState.Post
 
-    fun reset() {
-        pendingId = null
-        loading = false
-        card = HomeCard.Empty
-        url = ""
-    }
-
-    fun queue(request: DownloadRequest, kind: MediaKind) {
-        DownloadManager.start(context, request, SaveLocation.destination(preferences.saveTreeUri, kind))
+    fun queue(request: DownloadRequest) {
+        DownloadManager.start(context, request, SaveLocation.destination(preferences.saveTreeUri, request.kind))
     }
 
     fun startDownload(details: VideoDetails, quality: Quality) {
         Logger.d("download queued: ${quality.name}")
-        val kind = if (quality.isAudio) MediaKind.Audio else MediaKind.Video
-        queue(
-            DownloadRequest(
-                title = details.title,
-                author = details.author,
-                thumbnailUrl = details.thumbnailUrl,
-                label = quality.label,
-                fileName = Downloader.fileName(details.title, details.author, quality.label, quality.extension),
-                mimeType = quality.mimeType,
-                kind = kind,
-                resolve = { YouTube.ticket(details.id, quality) },
-            ),
-            kind,
-        )
-        Haptics.lightSuccess(context)
-        reset()
-        message = "Added to queue"
-        messageIsError = false
-    }
-
-    fun postRequest(post: MediaPost, item: MediaItem, index: Int): DownloadRequest {
-        val multi = post.items.size > 1
-        val video = item.kind == MediaKind.Video
-        val label = when {
-            video && multi -> "Video ${index + 1}"
-            video -> "Video"
-            multi -> "Photo ${index + 1}"
-            else -> "Photo"
-        }
-
-        return DownloadRequest(
-            title = post.title,
-            author = post.author,
-            thumbnailUrl = post.thumbnailUrl,
-            label = label,
-            fileName = Downloader.fileName(
-                title = post.author.ifBlank { "Catter" },
-                artist = post.id,
-                label = if (multi) "${index + 1}" else "",
-                extension = if (video) "mp4" else "jpg",
-            ),
-            mimeType = if (video) "video/mp4" else "image/jpeg",
-            kind = item.kind,
-            resolve = { DownloadTicket(item.url, "") },
-        )
+        queue(Requests.youtube(details, quality))
+        Resolver.markQueued("Added to queue")
     }
 
     fun startItem(post: MediaPost, item: MediaItem, index: Int) {
         Logger.d("post queued: ${post.id}")
-        queue(postRequest(post, item, index), item.kind)
+        queue(Requests.post(post, item, index))
         Haptics.lightSuccess(context)
         message = "Added to queue"
         messageIsError = false
     }
 
     fun startAll(post: MediaPost) {
-        post.items.forEachIndexed { index, item -> queue(postRequest(post, item, index), item.kind) }
-        Haptics.lightSuccess(context)
-        reset()
-        message = "${post.items.size} added to queue"
-        messageIsError = false
+        post.items.forEachIndexed { index, item -> queue(Requests.post(post, item, index)) }
+        Resolver.markQueued("${post.items.size} added to queue")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -212,7 +152,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     ) { granted ->
         val quality = requestedQuality
         requestedQuality = null
-        val details = (card as? HomeCard.Details)?.details
+        val details = (state as? ResolveState.Video)?.details
         if (granted && quality != null && details != null) {
             startDownload(details, quality)
         } else if (!granted) {
@@ -228,62 +168,29 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    suspend fun loadVideo(id: String) {
-        runCatching { YouTube.details(id) }
-            .onSuccess { details ->
-                if (pendingId != id) return@onSuccess
-                card = HomeCard.Details(details)
-                scope.launch { YouTube.prefetchKey(id) }
+    LaunchedEffect(state) {
+        when (val current = state) {
+            is ResolveState.Queued -> {
+                Haptics.lightSuccess(context)
+                url = ""
+                message = current.message
+                messageIsError = false
+                Resolver.clear()
             }
-            .onFailure {
-                if (pendingId != id) return@onFailure
-                card = HomeCard.Empty
-                message = "Could not load this video"
-                messageIsError = true
-            }
-    }
 
-    suspend fun loadPost(target: String, fetch: suspend (String) -> MediaPost) {
-        runCatching { fetch(target) }
-            .onSuccess { post ->
-                if (pendingId != target) return@onSuccess
-                if (post.items.size == 1) {
-                    startItem(post, post.items.first(), 0)
-                    reset()
-                } else {
-                    card = HomeCard.Post(post)
-                }
-            }
-            .onFailure {
-                if (pendingId != target) return@onFailure
-                card = HomeCard.Empty
-                message = "Could not load this post"
+            is ResolveState.Failed -> {
+                message = current.message
                 messageIsError = true
+                Resolver.clear()
             }
+
+            else -> Unit
+        }
     }
 
     fun submit() {
         focusManager.clearFocus()
-        val link = Links.parse(url)
-        if (link == null) {
-            Logger.w("unsupported link")
-            card = HomeCard.Empty
-            message = "Unsupported link"
-            messageIsError = true
-            return
-        }
-
-        Logger.d("resolve link: ${link.source.label} ${link.id}")
-        pendingId = link.id
-        scope.launch {
-            loading = true
-            when (link.source) {
-                Source.YouTube -> loadVideo(link.id)
-                Source.Instagram -> loadPost(link.id) { Instagram.post(it) }
-                Source.TikTok -> loadPost(link.id) { TikTok.post(it) }
-            }
-            if (pendingId == link.id) loading = false
-        }
+        Resolver.resolve(context, url, preferences.saveTreeUri)
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -319,7 +226,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                     if (hasCard || loading) {
                         Logger.d("clear item")
                         message = null
-                        reset()
+                        Resolver.clear()
+                        url = ""
                     } else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val pasted = clipboard.primaryClip
@@ -368,19 +276,17 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             }
 
             AnimatedContent(
-                targetState = card,
+                targetState = state,
                 transitionSpec = {
                     (fadeIn(tween(220)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220))) togetherWith
                         (fadeOut(tween(160)) + scaleOut(targetScale = 0.98f, animationSpec = tween(160))) using
                         SizeTransform(clip = false)
                 },
-                contentKey = { it::class },
+                contentKey = { cardKey(it) },
                 label = "home_card",
             ) { current ->
                 when (current) {
-                    HomeCard.Empty -> Spacer(Modifier.height(0.dp))
-
-                    is HomeCard.Details -> ItemDetails(
+                    is ResolveState.Video -> ItemDetails(
                         details = current.details,
                         onSelect = { quality ->
                             val needsPermission = Downloader.requiresLegacyPermission &&
@@ -396,12 +302,14 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(top = 12.dp),
                     )
 
-                    is HomeCard.Post -> PostDetails(
+                    is ResolveState.Post -> PostDetails(
                         post = current.post,
                         onDownload = { item, index -> startItem(current.post, item, index) },
                         onDownloadAll = { startAll(current.post) },
                         modifier = Modifier.padding(top = 12.dp),
                     )
+
+                    else -> Spacer(Modifier.height(0.dp))
                 }
             }
 

@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +90,7 @@ fun CatterApp() {
 
     var current by rememberSaveable { mutableStateOf(CatterDestination.Home) }
     var appeared by remember { mutableStateOf(false) }
+    val screens = rememberSaveableStateHolder()
 
     LaunchedEffect(Unit) { appeared = true }
 
@@ -118,10 +120,12 @@ fun CatterApp() {
                 },
                 label = "catter_content",
             ) { destination ->
-                when (destination) {
-                    CatterDestination.Home -> HomeScreen()
-                    CatterDestination.Downloads -> DownloadsScreen()
-                    CatterDestination.Settings -> SettingsScreen()
+                screens.SaveableStateProvider(destination.name) {
+                    when (destination) {
+                        CatterDestination.Home -> HomeScreen()
+                        CatterDestination.Downloads -> DownloadsScreen()
+                        CatterDestination.Settings -> SettingsScreen()
+                    }
                 }
             }
         }
