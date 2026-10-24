@@ -50,7 +50,7 @@ object DownloadNotifications {
     }
 
     fun progress(context: Context, tasks: List<DownloadManager.Task>): Notification {
-        val task = tasks.firstOrNull()
+        val task = tasks.firstOrNull { it.status == DownloadStatus.Running } ?: tasks.firstOrNull()
 
         val builder = NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_stat_download)

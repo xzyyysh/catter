@@ -44,7 +44,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,7 +76,6 @@ import f3l1x.catter.service.VideoDetails
 import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
-import f3l1x.catter.ui.components.DownloadProgressCard
 import f3l1x.catter.ui.components.ItemDetails
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.util.Haptics
@@ -101,7 +99,6 @@ private val RestFrame = GlitchFrame("e")
 private sealed interface HomeCard {
     data object Empty : HomeCard
     data class Details(val details: VideoDetails) : HomeCard
-    data class Download(val details: VideoDetails, val quality: Quality, val id: String) : HomeCard
 }
 
 @Composable
@@ -118,35 +115,25 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     var loading by remember { mutableStateOf(false) }
     var card by remember { mutableStateOf<HomeCard>(HomeCard.Empty) }
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
+    var pendingId by remember { mutableStateOf<String?>(null) }
 
-    val busy = card is HomeCard.Download
     val hasDetails = card is HomeCard.Details
 
-    fun startDownload(details: VideoDetails, quality: Quality) {
-        if (card is HomeCard.Download) return
-        Logger.d("download start: ${quality.name}")
-        val destination = SaveLocation.destination(preferences.saveTreeUri, quality)
-        val id = DownloadManager.start(context, details, quality, destination)
-        card = HomeCard.Download(details, quality, id)
+    fun reset() {
+        pendingId = null
+        loading = false
+        card = HomeCard.Empty
+        url = ""
     }
 
-    LaunchedEffect(Unit) {
-        DownloadManager.finished.collect { event ->
-            val current = card as? HomeCard.Download ?: return@collect
-            if (current.id != event.id) return@collect
-
-            if (event.error == null) {
-                Haptics.lightSuccess(context)
-                message = "Saved to Download"
-                messageIsError = false
-                card = HomeCard.Empty
-                url = ""
-            } else {
-                message = event.error
-                messageIsError = true
-                card = HomeCard.Details(current.details)
-            }
-        }
+    fun startDownload(details: VideoDetails, quality: Quality) {
+        Logger.d("download queued: ${quality.name}")
+        val destination = SaveLocation.destination(preferences.saveTreeUri, quality)
+        DownloadManager.start(context, details, quality, destination)
+        Haptics.lightSuccess(context)
+        reset()
+        message = "Added to queue"
+        messageIsError = false
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -171,7 +158,6 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     }
 
     fun submit() {
-        if (card is HomeCard.Download) return
         focusManager.clearFocus()
         val videoId = YouTube.videoId(url)
         if (videoId == null) {
@@ -182,19 +168,24 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             return
         }
         Logger.d("resolve link: $videoId")
+        pendingId = videoId
         scope.launch {
             loading = true
             runCatching { YouTube.details(videoId) }
                 .onSuccess { loaded ->
-                    card = HomeCard.Details(loaded)
-                    scope.launch { YouTube.prefetchKey(videoId) }
+                    if (pendingId == videoId) {
+                        card = HomeCard.Details(loaded)
+                        scope.launch { YouTube.prefetchKey(videoId) }
+                    }
                 }
                 .onFailure {
-                    card = HomeCard.Empty
-                    message = "Could not load this video"
-                    messageIsError = true
+                    if (pendingId == videoId) {
+                        card = HomeCard.Empty
+                        message = "Could not load this video"
+                        messageIsError = true
+                    }
                 }
-            loading = false
+            if (pendingId == videoId) loading = false
         }
     }
 
@@ -226,17 +217,12 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 onValueChange = { url = it },
                 placeholder = "Paste a link",
                 leadingIcon = TablerIcons.Link,
-                trailingIcon = when {
-                    hasDetails -> TablerIcons.X
-                    busy -> null
-                    else -> TablerIcons.Clipboard
-                },
+                trailingIcon = if (hasDetails || loading) TablerIcons.X else TablerIcons.Clipboard,
                 onTrailingClick = {
-                    if (hasDetails) {
+                    if (hasDetails || loading) {
                         Logger.d("clear item")
-                        card = HomeCard.Empty
-                        url = ""
                         message = null
+                        reset()
                     } else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val pasted = clipboard.primaryClip
@@ -312,14 +298,6 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         },
                         modifier = Modifier.padding(top = 12.dp),
                     )
-
-                    is HomeCard.Download -> HomeDownloadCard(
-                        id = current.id,
-                        title = current.details.title,
-                        thumbnailUrl = current.details.thumbnailUrl,
-                        qualityLabel = current.quality.label,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
                 }
             }
 
@@ -347,26 +325,6 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     if (showPlatforms) {
         SupportedPlatformsDialog(onDismissRequest = { showPlatforms = false })
     }
-}
-
-@Composable
-private fun HomeDownloadCard(
-    id: String,
-    title: String,
-    thumbnailUrl: String,
-    qualityLabel: String,
-    modifier: Modifier = Modifier,
-) {
-    val tasks by DownloadManager.tasks.collectAsState()
-    val progress = tasks.firstOrNull { it.id == id }?.progress
-
-    DownloadProgressCard(
-        title = title,
-        thumbnailUrl = thumbnailUrl,
-        qualityLabel = qualityLabel,
-        progress = progress,
-        modifier = modifier,
-    )
 }
 
 @Composable

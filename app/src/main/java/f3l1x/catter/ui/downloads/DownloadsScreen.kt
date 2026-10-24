@@ -44,7 +44,7 @@ import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.data.DownloadStore
 import f3l1x.catter.service.DownloadFiles
 import f3l1x.catter.service.DownloadManager
-import f3l1x.catter.service.DownloadProgress
+import f3l1x.catter.service.DownloadStatus
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.components.RemoteThumbnail
@@ -143,14 +143,9 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         }
 
         if (tasks.isNotEmpty()) {
-            item(key = "in_progress") { SectionLabel("In progress") }
+            item(key = "queue") { SectionLabel("Queue") }
             items(tasks, key = { "task-${it.id}" }) { task ->
-                ActiveDownloadRow(
-                    title = task.title,
-                    thumbnailUrl = task.thumbnailUrl,
-                    qualityLabel = task.qualityLabel,
-                    progress = task.progress,
-                )
+                QueueRow(task = task, onCancel = { DownloadManager.cancel(task.id) })
             }
         }
 
@@ -424,17 +419,15 @@ private fun HistoryRow(
 }
 
 @Composable
-private fun ActiveDownloadRow(
-    title: String,
-    thumbnailUrl: String,
-    qualityLabel: String,
-    progress: DownloadProgress?,
-) {
+private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
+    val progress = task.progress
     val status = when {
-        progress == null -> "Preparing $qualityLabel"
+        task.status == DownloadStatus.Queued -> "Queued · ${task.qualityLabel}"
+        progress == null -> "Preparing ${task.qualityLabel}"
         progress.isDeterminate -> "${formatBytes(progress.bytes)} / ${formatBytes(progress.total)}"
         else -> formatBytes(progress.bytes)
     }
+    val speed = progress?.speed ?: 0L
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -442,11 +435,11 @@ private fun ActiveDownloadRow(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RemoteThumbnail(
-                url = thumbnailUrl,
+                url = task.thumbnailUrl,
                 modifier = Modifier
                     .size(width = 76.dp, height = 44.dp)
                     .clip(RoundedCornerShape(8.dp)),
@@ -454,7 +447,7 @@ private fun ActiveDownloadRow(
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = task.title,
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -469,7 +462,6 @@ private fun ActiveDownloadRow(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    val speed = progress?.speed ?: 0L
                     if (speed > 0L) {
                         Spacer(Modifier.width(8.dp))
                         Text(
@@ -482,10 +474,28 @@ private fun ActiveDownloadRow(
                 }
                 Spacer(Modifier.height(6.dp))
                 ProgressLine(
-                    fraction = if (progress?.isDeterminate == true) progress.fraction else null,
+                    fraction = when {
+                        task.status == DownloadStatus.Queued -> 0f
+                        progress?.isDeterminate == true -> progress.fraction
+                        else -> null
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp),
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onCancel)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    imageVector = TablerIcons.X,
+                    contentDescription = "Cancel download",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

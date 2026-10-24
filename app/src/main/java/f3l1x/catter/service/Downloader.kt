@@ -12,6 +12,8 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -61,6 +63,7 @@ object Downloader {
 
         try {
             download(ticket.url, temp, onProgress)
+            currentCoroutineContext().ensureActive()
             MediaTags.write(temp, title, artist)
             publish(context, temp, fileName, quality, destination)
         } catch (throwable: Throwable) {
@@ -85,7 +88,7 @@ object Downloader {
         return "$clean (${quality.label}).${quality.extension}"
     }
 
-    private fun download(url: String, target: File, onProgress: ((DownloadProgress) -> Unit)?) {
+    private suspend fun download(url: String, target: File, onProgress: ((DownloadProgress) -> Unit)?) {
         val connection = openStream(url)
         try {
             val code = connection.responseCode
@@ -305,7 +308,7 @@ object Downloader {
         return candidate
     }
 
-    private fun copyWithProgress(
+    private suspend fun copyWithProgress(
         input: InputStream,
         output: OutputStream,
         total: Long,
@@ -318,6 +321,7 @@ object Downloader {
         var speed = 0L
 
         while (true) {
+            currentCoroutineContext().ensureActive()
             val read = input.read(buffer)
             if (read == -1) break
 
