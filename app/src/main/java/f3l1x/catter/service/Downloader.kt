@@ -64,7 +64,7 @@ object Downloader {
 
         try {
             signal.throwIfCancelled()
-            download(ticket.url, temp, signal, onProgress)
+            download(ticket.url, temp, ticket.headers, signal, onProgress)
             signal.throwIfCancelled()
             if (kind == MediaKind.Audio) MediaTags.write(temp, title, artist)
             publish(context, temp, fileName, mimeType, destination)
@@ -96,10 +96,11 @@ object Downloader {
     private fun download(
         url: String,
         target: File,
+        headers: Map<String, String>,
         signal: DownloadSignal,
         onProgress: ((DownloadProgress) -> Unit)?,
     ) {
-        val connection = openStream(url)
+        val connection = openStream(url, headers)
         try {
             val code = connection.responseCode
             if (code !in 200..299) throw IOException("HTTP $code")
@@ -361,12 +362,12 @@ object Downloader {
         return bytes
     }
 
-    private fun openStream(url: String): HttpURLConnection =
+    private fun openStream(url: String, headers: Map<String, String>): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15_000
             readTimeout = 30_000
             instanceFollowRedirects = true
-            YouTube.apiHeaders.forEach { (name, value) -> setRequestProperty(name, value) }
+            headers.forEach { (name, value) -> setRequestProperty(name, value) }
         }
 }

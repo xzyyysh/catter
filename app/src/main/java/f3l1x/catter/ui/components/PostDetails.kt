@@ -21,15 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import f3l1x.catter.service.InstagramItem
-import f3l1x.catter.service.InstagramPost
+import f3l1x.catter.service.MediaItem
 import f3l1x.catter.service.MediaKind
+import f3l1x.catter.service.MediaPost
 import io.tabler.icons.TablerIcons
 
 @Composable
 fun PostDetails(
-    post: InstagramPost,
-    onDownload: (InstagramItem, Int) -> Unit,
+    post: MediaPost,
+    onDownload: (MediaItem, Int) -> Unit,
     onDownloadAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -101,7 +101,7 @@ fun PostDetails(
 }
 
 @Composable
-private fun PostItemRow(item: InstagramItem, index: Int, onClick: () -> Unit) {
+private fun PostItemRow(item: MediaItem, index: Int, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -11,20 +11,6 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class InstagramItem(
-    val kind: MediaKind,
-    val url: String,
-    val thumbnailUrl: String,
-)
-
-data class InstagramPost(
-    val shortcode: String,
-    val author: String,
-    val title: String,
-    val thumbnailUrl: String,
-    val items: List<InstagramItem>,
-)
-
 object Instagram {
 
     private const val ORIGIN = "https://www.instagram.com"
@@ -63,7 +49,7 @@ object Instagram {
         return shortcode(link) ?: absolute(uri)
     }
 
-    suspend fun post(target: String): InstagramPost = withContext(Dispatchers.IO) {
+    suspend fun post(target: String): MediaPost = withContext(Dispatchers.IO) {
         val code = if (codePattern.matches(target)) target else shortcode(target)
         val url = if (code != null) "$ORIGIN/p/$code/" else absolute(target)
 
@@ -103,14 +89,14 @@ object Instagram {
         return candidate?.takeIf { codePattern.matches(it) }
     }
 
-    private fun build(node: JSONObject, shortcode: String): InstagramPost {
+    private fun build(node: JSONObject, shortcode: String): MediaPost {
         val author = node.optJSONObject("user")?.optString("username").orEmpty()
         val caption = node.optJSONObject("caption")?.optString("text").orEmpty()
         val items = items(node)
         if (items.isEmpty()) throw IOException("No media in this post")
 
-        return InstagramPost(
-            shortcode = shortcode,
+        return MediaPost(
+            id = shortcode,
             author = author,
             title = title(caption, author),
             thumbnailUrl = node.optString("display_uri").ifBlank { items.first().thumbnailUrl },
@@ -172,7 +158,7 @@ object Instagram {
         return null
     }
 
-    private fun items(node: JSONObject): List<InstagramItem> {
+    private fun items(node: JSONObject): List<MediaItem> {
         val carousel = node.optJSONArray("carousel_media")
         if (carousel != null && carousel.length() > 0) {
             return (0 until carousel.length()).mapNotNull { item(carousel.optJSONObject(it)) }
@@ -181,7 +167,7 @@ object Instagram {
         return listOfNotNull(item(node))
     }
 
-    private fun item(node: JSONObject?): InstagramItem? {
+    private fun item(node: JSONObject?): MediaItem? {
         if (node == null) return null
 
         val photo = node.optJSONObject("image_versions2")
@@ -199,13 +185,13 @@ object Instagram {
 
         return when {
             node.optInt("media_type") == MEDIA_TYPE_VIDEO && video.isNotBlank() ->
-                InstagramItem(MediaKind.Video, video, thumbnail)
+                MediaItem(MediaKind.Video, video, thumbnail)
 
             node.optInt("media_type") == MEDIA_TYPE_PHOTO && photo.isNotBlank() ->
-                InstagramItem(MediaKind.Photo, photo, thumbnail)
+                MediaItem(MediaKind.Photo, photo, thumbnail)
 
-            video.isNotBlank() -> InstagramItem(MediaKind.Video, video, thumbnail)
-            photo.isNotBlank() -> InstagramItem(MediaKind.Photo, photo, thumbnail)
+            video.isNotBlank() -> MediaItem(MediaKind.Video, video, thumbnail)
+            photo.isNotBlank() -> MediaItem(MediaKind.Photo, photo, thumbnail)
             else -> null
         }
     }

@@ -74,13 +74,14 @@ import f3l1x.catter.service.DownloadRequest
 import f3l1x.catter.service.DownloadTicket
 import f3l1x.catter.service.Downloader
 import f3l1x.catter.service.Instagram
-import f3l1x.catter.service.InstagramItem
-import f3l1x.catter.service.InstagramPost
 import f3l1x.catter.service.Links
+import f3l1x.catter.service.MediaItem
 import f3l1x.catter.service.MediaKind
+import f3l1x.catter.service.MediaPost
 import f3l1x.catter.service.Quality
 import f3l1x.catter.service.SaveLocation
 import f3l1x.catter.service.Source
+import f3l1x.catter.service.TikTok
 import f3l1x.catter.service.VideoDetails
 import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
@@ -109,7 +110,7 @@ private val RestFrame = GlitchFrame("e")
 private sealed interface HomeCard {
     data object Empty : HomeCard
     data class Details(val details: VideoDetails) : HomeCard
-    data class Post(val post: InstagramPost) : HomeCard
+    data class Post(val post: MediaPost) : HomeCard
 }
 
 @Composable
@@ -163,7 +164,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         messageIsError = false
     }
 
-    fun postRequest(post: InstagramPost, item: InstagramItem, index: Int): DownloadRequest {
+    fun postRequest(post: MediaPost, item: MediaItem, index: Int): DownloadRequest {
         val multi = post.items.size > 1
         val video = item.kind == MediaKind.Video
         val label = when {
@@ -179,8 +180,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             thumbnailUrl = post.thumbnailUrl,
             label = label,
             fileName = Downloader.fileName(
-                title = post.author.ifBlank { "Instagram" },
-                artist = post.shortcode,
+                title = post.author.ifBlank { "Catter" },
+                artist = post.id,
                 label = if (multi) "${index + 1}" else "",
                 extension = if (video) "mp4" else "jpg",
             ),
@@ -190,15 +191,15 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    fun startItem(post: InstagramPost, item: InstagramItem, index: Int) {
-        Logger.d("instagram queued: ${post.shortcode}")
+    fun startItem(post: MediaPost, item: MediaItem, index: Int) {
+        Logger.d("post queued: ${post.id}")
         queue(postRequest(post, item, index), item.kind)
         Haptics.lightSuccess(context)
         message = "Added to queue"
         messageIsError = false
     }
 
-    fun startAll(post: InstagramPost) {
+    fun startAll(post: MediaPost) {
         post.items.forEachIndexed { index, item -> queue(postRequest(post, item, index), item.kind) }
         Haptics.lightSuccess(context)
         reset()
@@ -242,10 +243,10 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             }
     }
 
-    suspend fun loadPost(shortcode: String) {
-        runCatching { Instagram.post(shortcode) }
+    suspend fun loadPost(target: String, fetch: suspend (String) -> MediaPost) {
+        runCatching { fetch(target) }
             .onSuccess { post ->
-                if (pendingId != shortcode) return@onSuccess
+                if (pendingId != target) return@onSuccess
                 if (post.items.size == 1) {
                     startItem(post, post.items.first(), 0)
                     reset()
@@ -254,7 +255,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 }
             }
             .onFailure {
-                if (pendingId != shortcode) return@onFailure
+                if (pendingId != target) return@onFailure
                 card = HomeCard.Empty
                 message = "Could not load this post"
                 messageIsError = true
@@ -278,7 +279,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             loading = true
             when (link.source) {
                 Source.YouTube -> loadVideo(link.id)
-                Source.Instagram -> loadPost(link.id)
+                Source.Instagram -> loadPost(link.id) { Instagram.post(it) }
+                Source.TikTok -> loadPost(link.id) { TikTok.post(it) }
             }
             if (pendingId == link.id) loading = false
         }
@@ -445,6 +447,12 @@ private fun SupportedPlatformsDialog(onDismissRequest: () -> Unit) {
         PlatformRow(
             icon = TablerIcons["brand-instagram"],
             name = "Instagram",
+            formats = "MP4 · JPG",
+        )
+        Spacer(Modifier.height(10.dp))
+        PlatformRow(
+            icon = TablerIcons["brand-tiktok"],
+            name = "TikTok",
             formats = "MP4 · JPG",
         )
         Text(

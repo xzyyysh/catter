@@ -46,11 +46,6 @@ data class VideoDetails(
     val thumbnailUrl: String,
 )
 
-data class DownloadTicket(
-    val url: String,
-    val fileName: String,
-)
-
 object YouTube {
 
     const val CATEGORY = "cnv.cx"
@@ -206,7 +201,7 @@ object YouTube {
         val url = json.optString("url")
         if (url.isBlank()) throw IOException("No download url returned")
 
-        return DownloadTicket(url = url, fileName = json.optString("filename"))
+        return DownloadTicket(url = url, fileName = json.optString("filename"), headers = apiHeaders)
     }
 
     private fun expiryOf(url: String): Long {

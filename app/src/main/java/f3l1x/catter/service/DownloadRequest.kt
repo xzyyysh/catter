@@ -1,6 +1,10 @@
 package f3l1x.catter.service
 
-enum class MediaKind { Video, Audio, Photo, Gif }
+data class DownloadTicket(
+    val url: String,
+    val fileName: String,
+    val headers: Map<String, String> = emptyMap(),
+)
 
 data class DownloadRequest(
     val title: String,
