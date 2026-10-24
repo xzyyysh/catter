@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -69,7 +71,9 @@ import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
 import f3l1x.catter.ui.settings.SettingsScreen
+import f3l1x.catter.util.Connectivity
 import io.tabler.icons.TablerIcons
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 private enum class CatterDestination(val label: String, val icon: ImageVector) {
@@ -81,6 +85,7 @@ private enum class CatterDestination(val label: String, val icon: ImageVector) {
 @Composable
 fun CatterApp() {
     RequestStartupPermissions()
+    RequireInternet()
 
     var current by rememberSaveable { mutableStateOf(CatterDestination.Home) }
     var appeared by remember { mutableStateOf(false) }
@@ -210,6 +215,22 @@ private fun FloatingNavigationBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RequireInternet() {
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+    val initial = remember(context) { Connectivity.isOnline(context) }
+    val flow = remember(context) { Connectivity.observe(context) }
+    val online by flow.collectAsState(initial = initial)
+
+    LaunchedEffect(online) {
+        if (online) return@LaunchedEffect
+        Toast.makeText(context, "No internet connection available.", Toast.LENGTH_SHORT).show()
+        delay(1200)
+        activity?.finish()
     }
 }
 
