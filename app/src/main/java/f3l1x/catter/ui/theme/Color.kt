@@ -5,10 +5,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-enum class AccentPreset(val light: ColorScheme, val dark: ColorScheme) {
-    Chocolate(ChocolateLightColorScheme, ChocolateDarkColorScheme),
-}
-
 fun ColorScheme.toAmoled(): ColorScheme = copy(
     background = Color.Black,
     surface = Color.Black,

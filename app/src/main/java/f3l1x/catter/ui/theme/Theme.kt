@@ -29,16 +29,18 @@ fun CatterTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     amoled: Boolean = false,
-    preset: AccentPreset = AccentPreset.Chocolate,
+    variant: ThemeVariant? = null,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
     val baseScheme = when {
+        variant != null -> variant.scheme
+
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 
-        darkTheme -> preset.dark
-        else -> preset.light
+        darkTheme -> ChocolateDarkColorScheme
+        else -> ChocolateLightColorScheme
     }
     val colorScheme = (if (amoled && darkTheme) baseScheme.toAmoled() else baseScheme).animated()
 

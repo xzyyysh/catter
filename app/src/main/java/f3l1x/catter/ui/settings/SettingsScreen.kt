@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -34,7 +35,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,6 +54,9 @@ import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
 import f3l1x.catter.service.SaveLocation
+import f3l1x.catter.ui.theme.DEFAULT_THEME_ID
+import f3l1x.catter.ui.theme.ThemeVariant
+import f3l1x.catter.ui.theme.Themes
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,6 +67,9 @@ private const val GITHUB_URL = "https://github.com/xzyyysh/catter"
 fun SettingsScreen(modifier: Modifier = Modifier) {
     val preferences = LocalAppPreferences.current
     val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val preset = Themes.current(preferences.themePreset)
+
+    var showThemePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -80,9 +90,11 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             dynamicColor = preferences.dynamicColor,
             dynamicSupported = dynamicSupported,
             amoled = preferences.amoled,
+            preset = preset,
             onThemeMode = preferences::updateThemeMode,
             onDynamicColor = preferences::updateDynamicColor,
             onAmoled = preferences::updateAmoled,
+            onOpenTheme = { showThemePicker = true },
         )
 
         Spacer(Modifier.height(12.dp))
@@ -90,6 +102,17 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
         AboutCard()
         Spacer(Modifier.height(88.dp))
+    }
+
+    if (showThemePicker) {
+        ThemePickerDialog(
+            selectedId = preferences.themePreset,
+            onSelect = { id ->
+                preferences.updateThemePreset(if (id == DEFAULT_THEME_ID) null else id)
+                showThemePicker = false
+            },
+            onDismissRequest = { showThemePicker = false },
+        )
     }
 }
 
@@ -99,9 +122,11 @@ private fun AppearanceCard(
     dynamicColor: Boolean,
     dynamicSupported: Boolean,
     amoled: Boolean,
+    preset: ThemeVariant,
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onAmoled: (Boolean) -> Unit,
+    onOpenTheme: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -130,9 +155,18 @@ private fun AppearanceCard(
             }
 
             Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(12.dp))
+
+            ThemePresetRow(preset = preset, onClick = onOpenTheme)
+
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(12.dp))
+
             ThemeModeSelector(
                 selected = themeMode,
-                enabled = !amoled,
+                enabled = !amoled && preset.id == DEFAULT_THEME_ID,
                 onSelect = onThemeMode,
             )
 
@@ -148,7 +182,7 @@ private fun AppearanceCard(
                     "Requires Android 12+"
                 },
                 checked = dynamicColor && dynamicSupported,
-                enabled = dynamicSupported && !amoled,
+                enabled = dynamicSupported && !amoled && preset.id == DEFAULT_THEME_ID,
                 onCheckedChange = onDynamicColor,
             )
 
@@ -164,6 +198,54 @@ private fun AppearanceCard(
                 onCheckedChange = onAmoled,
             )
         }
+    }
+}
+
+@Composable
+private fun ThemePresetRow(preset: ThemeVariant, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Theme",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "${preset.family.label} · ${preset.name}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(
+                preset.scheme.background,
+                preset.scheme.surfaceContainerHigh,
+                preset.scheme.primary,
+            ).forEach { color ->
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(color),
+                )
+            }
+        }
+
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            imageVector = TablerIcons["chevron-right"],
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

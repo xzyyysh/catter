@@ -15,6 +15,7 @@ import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
 import f3l1x.catter.ui.CatterApp
 import f3l1x.catter.ui.theme.CatterTheme
+import f3l1x.catter.ui.theme.Themes
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +27,9 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             val preferences = remember { AppPreferences(applicationContext) }
+            val variant = Themes.byId(preferences.themePreset)
             val darkTheme = when {
+                variant != null -> variant.isDark
                 preferences.amoled -> true
                 preferences.themeMode == ThemeMode.System -> isSystemInDarkTheme()
                 preferences.themeMode == ThemeMode.Dark -> true
@@ -38,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     darkTheme = darkTheme,
                     dynamicColor = preferences.dynamicColor && !preferences.amoled,
                     amoled = preferences.amoled,
+                    variant = variant,
                 ) {
                     CatterApp()
                 }

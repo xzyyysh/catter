@@ -38,6 +38,9 @@ class AppPreferences(context: Context) {
     var permissionsRequested: Boolean by mutableStateOf(prefs.getBoolean(KEY_PERMISSIONS, false))
         private set
 
+    var themePreset: String? by mutableStateOf(prefs.getString(KEY_THEME_PRESET, null))
+        private set
+
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
@@ -51,6 +54,11 @@ class AppPreferences(context: Context) {
     fun updateAmoled(enabled: Boolean) {
         amoled = enabled
         prefs.edit().putBoolean(KEY_AMOLED, enabled).apply()
+    }
+
+    fun updateThemePreset(id: String?) {
+        themePreset = id
+        prefs.edit().putString(KEY_THEME_PRESET, id).apply()
     }
 
     fun markPermissionsRequested() {
@@ -75,6 +83,7 @@ class AppPreferences(context: Context) {
         const val KEY_SAVE_TREE = "save_tree"
         const val KEY_SAVE_LABEL = "save_label"
         const val KEY_PERMISSIONS = "permissions_requested"
+        const val KEY_THEME_PRESET = "theme_preset"
     }
 }
 
