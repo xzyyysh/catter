@@ -6,19 +6,19 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,12 +69,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.service.Downloader
 import f3l1x.catter.service.Quality
 import f3l1x.catter.service.VideoDetails
 import f3l1x.catter.service.YouTube
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
+import f3l1x.catter.ui.components.DownloadProgressCard
 import f3l1x.catter.ui.components.ItemDetails
 import f3l1x.catter.util.Haptics
 import f3l1x.catter.util.Logger
@@ -93,6 +96,12 @@ private data class GlitchFrame(
 
 private val RestFrame = GlitchFrame("e")
 
+private sealed interface HomeCard {
+    data object Empty : HomeCard
+    data class Details(val details: VideoDetails) : HomeCard
+    data class Download(val details: VideoDetails, val quality: Quality, val id: String) : HomeCard
+}
+
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -104,33 +113,35 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     var message by remember { mutableStateOf<String?>(null) }
     var messageIsError by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
-    var details by remember { mutableStateOf<VideoDetails?>(null) }
-    var shownDetails by remember { mutableStateOf<VideoDetails?>(null) }
-    var downloading by remember { mutableStateOf<Quality?>(null) }
+    var card by remember { mutableStateOf<HomeCard>(HomeCard.Empty) }
     var requestedQuality by remember { mutableStateOf<Quality?>(null) }
 
-    LaunchedEffect(details) {
-        if (details != null) shownDetails = details
+    val busy = card is HomeCard.Download
+    val hasDetails = card is HomeCard.Details
+
+    fun startDownload(details: VideoDetails, quality: Quality) {
+        if (card is HomeCard.Download) return
+        Logger.d("download start: ${quality.name}")
+        val id = DownloadManager.start(context, details, quality)
+        card = HomeCard.Download(details, quality, id)
     }
 
-    fun performDownload(quality: Quality) {
-        val current = details ?: return
-        if (downloading != null) return
-        scope.launch {
-            downloading = quality
-            Logger.d("download start: ${quality.name}")
-            runCatching {
-                val ticket = YouTube.ticket(current.id, quality)
-                Downloader.save(context, ticket, quality, current.title, current.author)
-            }.onSuccess {
+    LaunchedEffect(Unit) {
+        DownloadManager.finished.collect { event ->
+            val current = card as? HomeCard.Download ?: return@collect
+            if (current.id != event.id) return@collect
+
+            if (event.error == null) {
                 Haptics.lightSuccess(context)
                 message = "Saved to Download"
                 messageIsError = false
-            }.onFailure { throwable ->
-                message = throwable.message ?: "Download failed"
+                card = HomeCard.Empty
+                url = ""
+            } else {
+                message = event.error
                 messageIsError = true
+                card = HomeCard.Details(current.details)
             }
-            downloading = null
         }
     }
 
@@ -139,8 +150,9 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     ) { granted ->
         val quality = requestedQuality
         requestedQuality = null
-        if (granted && quality != null) {
-            performDownload(quality)
+        val details = (card as? HomeCard.Details)?.details
+        if (granted && quality != null && details != null) {
+            startDownload(details, quality)
         } else if (!granted) {
             message = "Storage permission is required"
             messageIsError = true
@@ -155,11 +167,12 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     }
 
     fun submit() {
+        if (card is HomeCard.Download) return
         focusManager.clearFocus()
         val videoId = YouTube.videoId(url)
         if (videoId == null) {
             Logger.w("unsupported link")
-            details = null
+            card = HomeCard.Empty
             message = "Only YouTube links are supported"
             messageIsError = true
             return
@@ -169,11 +182,11 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             loading = true
             runCatching { YouTube.details(videoId) }
                 .onSuccess { loaded ->
-                    details = loaded
+                    card = HomeCard.Details(loaded)
                     scope.launch { YouTube.prefetchKey(videoId) }
                 }
                 .onFailure {
-                    details = null
+                    card = HomeCard.Empty
                     message = "Could not load this video"
                     messageIsError = true
                 }
@@ -209,11 +222,15 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 onValueChange = { url = it },
                 placeholder = "Paste a link",
                 leadingIcon = TablerIcons.Link,
-                trailingIcon = if (details != null) TablerIcons.X else TablerIcons.Clipboard,
+                trailingIcon = when {
+                    hasDetails -> TablerIcons.X
+                    busy -> null
+                    else -> TablerIcons.Clipboard
+                },
                 onTrailingClick = {
-                    if (details != null) {
+                    if (hasDetails) {
                         Logger.d("clear item")
-                        details = null
+                        card = HomeCard.Empty
                         url = ""
                         message = null
                     } else {
@@ -262,26 +279,21 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            AnimatedVisibility(
-                visible = details != null,
-                enter = fadeIn(tween(220)) +
-                    expandVertically(
-                        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow),
-                        expandFrom = Alignment.Top,
-                    ) +
-                    slideInVertically(tween(260)) { it / 12 },
-                exit = fadeOut(tween(140)) +
-                    shrinkVertically(
-                        animationSpec = tween(200),
-                        shrinkTowards = Alignment.Top,
-                    ) +
-                    slideOutVertically(tween(200)) { it / 16 },
-                label = "item_details",
-            ) {
-                shownDetails?.let { video ->
-                    ItemDetails(
-                        details = video,
-                        downloading = downloading,
+            AnimatedContent(
+                targetState = card,
+                transitionSpec = {
+                    (fadeIn(tween(220)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220))) togetherWith
+                        (fadeOut(tween(160)) + scaleOut(targetScale = 0.98f, animationSpec = tween(160))) using
+                        SizeTransform(clip = false)
+                },
+                contentKey = { it::class },
+                label = "home_card",
+            ) { current ->
+                when (current) {
+                    HomeCard.Empty -> Spacer(Modifier.height(0.dp))
+
+                    is HomeCard.Details -> ItemDetails(
+                        details = current.details,
                         onSelect = { quality ->
                             val needsPermission = Downloader.requiresLegacyPermission &&
                                 context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
@@ -290,9 +302,17 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                                 requestedQuality = quality
                                 permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                             } else {
-                                performDownload(quality)
+                                startDownload(current.details, quality)
                             }
                         },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+
+                    is HomeCard.Download -> HomeDownloadCard(
+                        id = current.id,
+                        title = current.details.title,
+                        thumbnailUrl = current.details.thumbnailUrl,
+                        qualityLabel = current.quality.label,
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 }
@@ -322,6 +342,26 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     if (showPlatforms) {
         SupportedPlatformsDialog(onDismissRequest = { showPlatforms = false })
     }
+}
+
+@Composable
+private fun HomeDownloadCard(
+    id: String,
+    title: String,
+    thumbnailUrl: String,
+    qualityLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    val tasks by DownloadManager.tasks.collectAsState()
+    val progress = tasks.firstOrNull { it.id == id }?.progress
+
+    DownloadProgressCard(
+        title = title,
+        thumbnailUrl = thumbnailUrl,
+        qualityLabel = qualityLabel,
+        progress = progress,
+        modifier = modifier,
+    )
 }
 
 @Composable

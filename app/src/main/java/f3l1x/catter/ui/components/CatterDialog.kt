@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ fun CatterDialog(
     title: String,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: (@Composable RowScope.(dismiss: () -> Unit) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
@@ -90,11 +92,15 @@ fun CatterDialog(
                                 .padding(top = 16.dp),
                             horizontalArrangement = Arrangement.End,
                         ) {
-                            TextButton(onClick = close) {
-                                Text(
-                                    text = "Close",
-                                    style = MaterialTheme.typography.labelLarge,
-                                )
+                            if (actions != null) {
+                                actions(close)
+                            } else {
+                                TextButton(onClick = close) {
+                                    Text(
+                                        text = "Close",
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
                             }
                         }
                     }

@@ -7,6 +7,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
@@ -14,12 +15,32 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+
+data class SavedFile(
+    val uri: String,
+    val fileName: String,
+    val size: Long,
+)
+
+data class DownloadProgress(
+    val bytes: Long,
+    val total: Long,
+    val speed: Long,
+) {
+    val isDeterminate: Boolean get() = total > 0L
+
+    val fraction: Float
+        get() = if (isDeterminate) (bytes.toDouble() / total).toFloat().coerceIn(0f, 1f) else 0f
+}
 
 object Downloader {
 
     private const val BUFFER_SIZE = 64 * 1024
+    private const val PROGRESS_INTERVAL_MS = 120L
+    private const val SPEED_WARMUP_MS = 400L
 
     val requiresLegacyPermission: Boolean
         get() = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
@@ -30,7 +51,8 @@ object Downloader {
         quality: Quality,
         title: String,
         artist: String,
-    ): String = withContext(Dispatchers.IO) {
+        onProgress: ((DownloadProgress) -> Unit)? = null,
+    ): SavedFile = withContext(Dispatchers.IO) {
         val fileName = fileName(title, artist, quality)
         Logger.d("download start: $fileName")
 
@@ -39,16 +61,19 @@ object Downloader {
             val code = connection.responseCode
             if (code !in 200..299) throw IOException("HTTP $code")
 
-            val location = connection.inputStream.use { input ->
+            val total = connection.contentLengthLong.takeIf { it > 0L } ?: -1L
+            Logger.d("download size: $total")
+
+            val saved = connection.inputStream.use { input ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveToMediaStore(context, input, fileName, quality)
+                    saveToMediaStore(context, input, fileName, quality, total, onProgress)
                 } else {
-                    saveToPublicDirectory(context, input, fileName, quality)
+                    saveToPublicDirectory(context, input, fileName, quality, total, onProgress)
                 }
             }
 
-            Logger.i("download saved: $location")
-            location
+            Logger.i("download saved: ${saved.uri}")
+            saved
         } catch (throwable: Throwable) {
             Logger.e("download failed: $fileName", throwable)
             throw throwable
@@ -76,7 +101,9 @@ object Downloader {
         input: InputStream,
         fileName: String,
         quality: Quality,
-    ): String {
+        total: Long,
+        onProgress: ((DownloadProgress) -> Unit)?,
+    ): SavedFile {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val displayName = uniqueMediaName(resolver, collection, fileName)
@@ -89,9 +116,9 @@ object Downloader {
         }
 
         val uri = resolver.insert(collection, values) ?: throw IOException("Cannot create media entry")
-        try {
-            resolver.openOutputStream(uri)?.use { output ->
-                input.copyTo(output, BUFFER_SIZE)
+        val size = try {
+            val written = resolver.openOutputStream(uri)?.use { output ->
+                copyWithProgress(input, output, total, onProgress)
             } ?: throw IOException("Cannot open output stream")
 
             resolver.update(
@@ -100,12 +127,13 @@ object Downloader {
                 null,
                 null,
             )
+            written
         } catch (throwable: Throwable) {
             resolver.delete(uri, null, null)
             throw throwable
         }
 
-        return "${Environment.DIRECTORY_DOWNLOADS}/$displayName"
+        return SavedFile(uri = uri.toString(), fileName = displayName, size = size)
     }
 
     private fun uniqueMediaName(
@@ -150,12 +178,14 @@ object Downloader {
         input: InputStream,
         fileName: String,
         quality: Quality,
-    ): String {
+        total: Long,
+        onProgress: ((DownloadProgress) -> Unit)?,
+    ): SavedFile {
         val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         if (!directory.exists()) directory.mkdirs()
 
         val file = uniqueFile(directory, fileName)
-        file.outputStream().use { output -> input.copyTo(output, BUFFER_SIZE) }
+        file.outputStream().use { output -> copyWithProgress(input, output, total, onProgress) }
 
         MediaScannerConnection.scanFile(
             context,
@@ -164,7 +194,7 @@ object Downloader {
             null,
         )
 
-        return file.absolutePath
+        return SavedFile(uri = file.absolutePath, fileName = file.name, size = file.length())
     }
 
     private fun uniqueFile(directory: File, fileName: String): File {
@@ -178,6 +208,41 @@ object Downloader {
             index++
         }
         return candidate
+    }
+
+    private fun copyWithProgress(
+        input: InputStream,
+        output: OutputStream,
+        total: Long,
+        onProgress: ((DownloadProgress) -> Unit)?,
+    ): Long {
+        val buffer = ByteArray(BUFFER_SIZE)
+        var bytes = 0L
+        var startedAt = 0L
+        var lastEmitAt = 0L
+        var speed = 0L
+
+        while (true) {
+            val read = input.read(buffer)
+            if (read == -1) break
+
+            output.write(buffer, 0, read)
+            bytes += read
+            if (onProgress == null) continue
+
+            val now = SystemClock.elapsedRealtime()
+            if (startedAt == 0L) startedAt = now
+            if (now - lastEmitAt >= PROGRESS_INTERVAL_MS) {
+                val elapsed = now - startedAt
+                if (elapsed >= SPEED_WARMUP_MS) speed = bytes * 1000L / elapsed
+                onProgress(DownloadProgress(bytes = bytes, total = total, speed = speed))
+                lastEmitAt = now
+            }
+        }
+
+        output.flush()
+        onProgress?.invoke(DownloadProgress(bytes = bytes, total = total, speed = speed))
+        return bytes
     }
 
     private fun openStream(url: String): HttpURLConnection =

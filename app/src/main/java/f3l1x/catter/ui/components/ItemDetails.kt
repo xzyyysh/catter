@@ -1,10 +1,8 @@
 package f3l1x.catter.ui.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,46 +13,33 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import f3l1x.catter.service.Quality
 import f3l1x.catter.service.VideoDetails
-import f3l1x.catter.util.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ItemDetails(
     details: VideoDetails,
-    downloading: Quality?,
     onSelect: (Quality) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -119,8 +104,6 @@ fun ItemDetails(
                 qualities.forEach { quality ->
                     QualityPill(
                         quality = quality,
-                        active = downloading == quality,
-                        enabled = downloading == null,
                         onClick = { onSelect(quality) },
                     )
                 }
@@ -181,20 +164,14 @@ private fun CategoryTab(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun QualityPill(
     quality: Quality,
-    active: Boolean,
-    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = if (active) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(onClick = onClick)
             .defaultMinSize(minWidth = 52.dp),
     ) {
         Box(
@@ -203,55 +180,10 @@ private fun QualityPill(
                 .height(16.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (active) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    strokeWidth = 1.5.dp,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            } else {
-                Text(
-                    text = quality.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RemoteThumbnail(url: String, modifier: Modifier = Modifier) {
-    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    val candidates = remember(url) {
-        listOf(url, url.replace("maxresdefault", "hqdefault"))
-    }
-
-    LaunchedEffect(url) {
-        bitmap = withContext(Dispatchers.IO) {
-            candidates.firstNotNullOfOrNull { candidate ->
-                runCatching {
-                    val connection = URL(candidate).openConnection() as HttpURLConnection
-                    connection.connectTimeout = 10_000
-                    connection.readTimeout = 10_000
-                    connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                }.onFailure {
-                    Logger.w("thumbnail failed: ${candidate.substringAfterLast('/')}", it)
-                }.getOrNull()
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        bitmap?.let { image ->
-            Image(
-                bitmap = image,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
+            Text(
+                text = quality.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

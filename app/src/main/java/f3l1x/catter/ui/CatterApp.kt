@@ -50,6 +50,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
 import f3l1x.catter.ui.settings.SettingsScreen
 import io.tabler.icons.TablerIcons
@@ -57,6 +58,7 @@ import kotlin.math.roundToInt
 
 private enum class CatterDestination(val label: String, val icon: ImageVector) {
     Home("Home", TablerIcons.Home),
+    Downloads("Downloads", TablerIcons["download"]),
     Settings("Settings", TablerIcons.Settings),
 }
 
@@ -95,6 +97,7 @@ fun CatterApp() {
             ) { destination ->
                 when (destination) {
                     CatterDestination.Home -> HomeScreen()
+                    CatterDestination.Downloads -> DownloadsScreen()
                     CatterDestination.Settings -> SettingsScreen()
                 }
             }
@@ -214,7 +217,7 @@ private fun FloatingNavigationItem(
             .onGloballyPositioned { onBoundsChange(it.boundsInRoot()) }
             .clip(RoundedCornerShape(50))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -223,11 +226,13 @@ private fun FloatingNavigationItem(
             tint = contentColor,
             modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = destination.label,
-            style = MaterialTheme.typography.labelLarge,
-            color = contentColor,
-        )
+        if (selected) {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = destination.label,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+            )
+        }
     }
 }
