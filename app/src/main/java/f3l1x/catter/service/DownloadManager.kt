@@ -4,7 +4,6 @@ import android.content.Context
 import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.data.DownloadStore
 import f3l1x.catter.util.Logger
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,14 +33,14 @@ object DownloadManager {
         val details: VideoDetails,
         val quality: Quality,
         val destination: Destination,
+        val signal: DownloadSignal = DownloadSignal(),
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val queue = ArrayDeque<Request>()
 
     private var worker: Job? = null
-    private var activeJob: Job? = null
-    private var activeId: String? = null
+    private var active: Request? = null
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
@@ -67,51 +66,40 @@ object DownloadManager {
 
     fun cancel(id: String) {
         queue.removeAll { it.id == id }
-        if (activeId == id) activeJob?.cancel()
+        active?.takeIf { it.id == id }?.signal?.cancel()
         _tasks.update { tasks -> tasks.filterNot { it.id == id } }
     }
 
     private suspend fun drain(context: Context) {
         while (true) {
             val request = queue.removeFirstOrNull() ?: break
-            activeId = request.id
+            active = request
             markRunning(request.id)
-
-            val job = scope.launch { run(context, request) }
-            activeJob = job
-            job.join()
-            activeJob = null
-            activeId = null
+            run(context, request)
+            active = null
         }
 
         DownloadService.stop(context)
     }
 
     private suspend fun run(context: Context, request: Request) {
-        val outcome = runCatching {
+        try {
             val ticket = YouTube.ticket(request.details.id, request.quality)
-            Downloader.save(
+            val saved = Downloader.save(
                 context = context,
                 ticket = ticket,
                 quality = request.quality,
                 title = request.details.title,
                 artist = request.details.author,
                 destination = request.destination,
+                signal = request.signal,
             ) { stats ->
                 _tasks.update { tasks ->
                     tasks.map { if (it.id == request.id) it.copy(progress = stats) else it }
                 }
             }
-        }
 
-        if (outcome.exceptionOrNull() is CancellationException) {
-            _tasks.update { tasks -> tasks.filterNot { it.id == request.id } }
-            Logger.d("download cancelled: ${request.details.id}")
-            return
-        }
-
-        val record = outcome.getOrNull()?.let { saved ->
-            DownloadRecord(
+            val record = DownloadRecord(
                 id = request.id,
                 title = request.details.title,
                 author = request.details.author,
@@ -124,18 +112,17 @@ object DownloadManager {
                 size = saved.size,
                 createdAt = System.currentTimeMillis(),
             )
-        }
 
-        if (record != null) {
             DownloadStore.add(record)
             DownloadNotifications.completed(context, record)
-        } else {
-            val failure = outcome.exceptionOrNull()
-            Logger.e("download failed: ${request.details.id}", failure)
-            DownloadNotifications.failed(context, request.details.title, failure?.message)
+        } catch (cancelled: DownloadCancelled) {
+            Logger.d("download cancelled: ${request.details.id}")
+        } catch (throwable: Throwable) {
+            Logger.e("download failed: ${request.details.id}", throwable)
+            DownloadNotifications.failed(context, request.details.title, throwable.message)
+        } finally {
+            _tasks.update { tasks -> tasks.filterNot { it.id == request.id } }
         }
-
-        _tasks.update { tasks -> tasks.filterNot { it.id == request.id } }
     }
 
     private fun markRunning(id: String) {

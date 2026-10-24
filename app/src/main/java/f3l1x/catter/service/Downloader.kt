@@ -12,8 +12,6 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -55,6 +53,7 @@ object Downloader {
         title: String,
         artist: String,
         destination: Destination,
+        signal: DownloadSignal,
         onProgress: ((DownloadProgress) -> Unit)? = null,
     ): SavedFile = withContext(Dispatchers.IO) {
         val fileName = fileName(title, artist, quality)
@@ -62,10 +61,13 @@ object Downloader {
         Logger.d("download start: $fileName")
 
         try {
-            download(ticket.url, temp, onProgress)
-            currentCoroutineContext().ensureActive()
-            MediaTags.write(temp, title, artist)
+            signal.throwIfCancelled()
+            download(ticket.url, temp, signal, onProgress)
+            signal.throwIfCancelled()
+            if (quality.isAudio) MediaTags.write(temp, title, artist)
             publish(context, temp, fileName, quality, destination)
+        } catch (cancelled: DownloadCancelled) {
+            throw cancelled
         } catch (throwable: Throwable) {
             Logger.e("download failed: $fileName", throwable)
             throw throwable
@@ -88,7 +90,12 @@ object Downloader {
         return "$clean (${quality.label}).${quality.extension}"
     }
 
-    private suspend fun download(url: String, target: File, onProgress: ((DownloadProgress) -> Unit)?) {
+    private fun download(
+        url: String,
+        target: File,
+        signal: DownloadSignal,
+        onProgress: ((DownloadProgress) -> Unit)?,
+    ) {
         val connection = openStream(url)
         try {
             val code = connection.responseCode
@@ -99,7 +106,7 @@ object Downloader {
 
             connection.inputStream.use { input ->
                 target.outputStream().use { output ->
-                    copyWithProgress(input, output, total, onProgress)
+                    copyWithProgress(input, output, total, signal, onProgress)
                 }
             }
         } finally {
@@ -308,10 +315,11 @@ object Downloader {
         return candidate
     }
 
-    private suspend fun copyWithProgress(
+    private fun copyWithProgress(
         input: InputStream,
         output: OutputStream,
         total: Long,
+        signal: DownloadSignal,
         onProgress: ((DownloadProgress) -> Unit)?,
     ): Long {
         val buffer = ByteArray(BUFFER_SIZE)
@@ -321,7 +329,7 @@ object Downloader {
         var speed = 0L
 
         while (true) {
-            currentCoroutineContext().ensureActive()
+            signal.throwIfCancelled()
             val read = input.read(buffer)
             if (read == -1) break
 
