@@ -14,5 +14,4 @@ data class MediaPost(
     val title: String,
     val thumbnailUrl: String,
     val items: List<MediaItem>,
-    val headers: Map<String, String> = emptyMap(),
 )
