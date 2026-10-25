@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import f3l1x.catter.util.Logger
 
 enum class ThemeMode(val label: String) {
     System("System"),
@@ -41,6 +42,13 @@ class AppPreferences(context: Context) {
     var themePreset: String? by mutableStateOf(prefs.getString(KEY_THEME_PRESET, null))
         private set
 
+    var debugLogs: Boolean by mutableStateOf(prefs.getBoolean(KEY_DEBUG_LOGS, false))
+        private set
+
+    init {
+        Logger.enabled = debugLogs
+    }
+
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
@@ -49,6 +57,12 @@ class AppPreferences(context: Context) {
     fun updateDynamicColor(enabled: Boolean) {
         dynamicColor = enabled
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
+    }
+
+    fun updateDebugLogs(enabled: Boolean) {
+        debugLogs = enabled
+        Logger.enabled = enabled
+        prefs.edit().putBoolean(KEY_DEBUG_LOGS, enabled).apply()
     }
 
     fun updateAmoled(enabled: Boolean) {
@@ -84,6 +98,7 @@ class AppPreferences(context: Context) {
         const val KEY_SAVE_LABEL = "save_label"
         const val KEY_PERMISSIONS = "permissions_requested"
         const val KEY_THEME_PRESET = "theme_preset"
+        const val KEY_DEBUG_LOGS = "debug_logs"
     }
 }
 

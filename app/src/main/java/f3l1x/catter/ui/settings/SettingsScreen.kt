@@ -101,6 +101,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         StorageCard(preferences)
         Spacer(Modifier.height(12.dp))
         AboutCard()
+        Spacer(Modifier.height(12.dp))
+        DebugCard(preferences)
         Spacer(Modifier.height(88.dp))
     }
 
@@ -483,6 +485,49 @@ private fun AboutCard() {
                 label = "GitHub",
                 value = "xzyyysh/catter",
                 onClick = { uriHandler.openUri(GITHUB_URL) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DebugCard(preferences: AppPreferences) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = TablerIcons["bug"],
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Debug",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(12.dp))
+
+            SettingSwitchRow(
+                title = "Debug logs",
+                subtitle = "Write verbose logs to logcat, including release builds",
+                checked = preferences.debugLogs,
+                enabled = true,
+                onCheckedChange = preferences::updateDebugLogs,
             )
         }
     }
