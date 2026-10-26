@@ -375,6 +375,12 @@ private fun SupportedPlatformsDialog(onDismissRequest: () -> Unit) {
             name = "TikTok",
             formats = "MP4 · JPG",
         )
+        Spacer(Modifier.height(10.dp))
+        PlatformRow(
+            icon = TablerIcons["brand-pinterest"],
+            name = "Pinterest",
+            formats = "MP4 · GIF · JPG",
+        )
         Text(
             text = "More sources soon!",
             style = MaterialTheme.typography.labelSmall,

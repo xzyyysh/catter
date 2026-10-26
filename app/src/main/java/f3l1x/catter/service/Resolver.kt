@@ -50,6 +50,7 @@ object Resolver {
                 Source.YouTube -> loadVideo(current, target.id)
                 Source.Instagram -> loadPost(appContext, current, target.id, treeUri) { Instagram.post(it) }
                 Source.TikTok -> loadPost(appContext, current, target.id, treeUri) { TikTok.post(it) }
+                Source.Pinterest -> loadPost(appContext, current, target.id, treeUri) { Pinterest.post(it) }
             }
         }
     }

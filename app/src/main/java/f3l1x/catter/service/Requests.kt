@@ -20,11 +20,25 @@ object Requests {
     fun post(post: MediaPost, item: MediaItem, index: Int): DownloadRequest {
         val multi = post.items.size > 1
         val video = item.kind == MediaKind.Video
+        val gif = item.kind == MediaKind.Gif
         val label = when {
             video && multi -> "Video ${index + 1}"
             video -> "Video"
+            gif && multi -> "Gif ${index + 1}"
+            gif -> "Gif"
             multi -> "Photo ${index + 1}"
             else -> "Photo"
+        }
+        val extension = when {
+            video -> "mp4"
+            gif -> "gif"
+            else -> imageExtension(item.url)
+        }
+        val mimeType = when {
+            video -> "video/mp4"
+            gif -> "image/gif"
+            extension == "jpg" -> "image/jpeg"
+            else -> "image/$extension"
         }
 
         return DownloadRequest(
@@ -36,11 +50,16 @@ object Requests {
                 title = post.author.ifBlank { "Catter" },
                 artist = post.id,
                 label = if (multi) "${index + 1}" else "",
-                extension = if (video) "mp4" else "jpg",
+                extension = extension,
             ),
-            mimeType = if (video) "video/mp4" else "image/jpeg",
+            mimeType = mimeType,
             kind = item.kind,
             resolve = { DownloadTicket(item.url, "") },
         )
+    }
+
+    private fun imageExtension(url: String): String {
+        val extension = url.substringBefore('?').substringAfterLast('.', "").lowercase()
+        return if (extension in setOf("jpg", "jpeg", "png", "webp")) extension else "jpg"
     }
 }
