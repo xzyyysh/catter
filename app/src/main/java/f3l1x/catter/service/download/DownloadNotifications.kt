@@ -16,6 +16,7 @@ import f3l1x.catter.MainActivity
 import f3l1x.catter.R
 import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.util.formatBytes
+import f3l1x.catter.util.formatRemaining
 import f3l1x.catter.util.formatSpeed
 
 object DownloadNotifications {
@@ -75,7 +76,22 @@ object DownloadNotifications {
             stats.isDeterminate -> {
                 builder.setProgress(100, (stats.fraction * 100).toInt().coerceIn(0, 100), false)
                 builder.setContentText(
-                    "${formatBytes(stats.bytes)} / ${formatBytes(stats.total)}  ·  ${formatSpeed(stats.speed)}",
+                    buildString {
+                        append(formatBytes(stats.bytes))
+                        append(" / ")
+                        append(formatBytes(stats.total))
+                        append("  ·  ")
+                        append(formatSpeed(stats.speed))
+                        if (stats.eta > 0L) {
+                            append("  ·  ")
+                            append(
+                                context.getString(
+                                    R.string.downloads_eta,
+                                    formatRemaining(stats.eta),
+                                ),
+                            )
+                        }
+                    },
                 )
             }
 

@@ -75,6 +75,9 @@
     <string name="downloads_file_deleted">File is deleted</string>
     <string name="downloads_more_options">More options</string>
     <string name="downloads_locate_file">Locate file</string>
+    <string name="downloads_share_file">Share file</string>
+    <string name="downloads_retry">Retry download</string>
+    <string name="downloads_eta">~%1$s left</string>
     <string name="downloads_remove_from_history">Remove from history</string>
     <string name="downloads_cancel_download">Cancel download</string>
     <string name="downloads_show_full_error">Show full error</string>

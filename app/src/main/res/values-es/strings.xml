@@ -75,6 +75,9 @@
     <string name="downloads_file_deleted">Archivo eliminado</string>
     <string name="downloads_more_options">Más opciones</string>
     <string name="downloads_locate_file">Ubicar archivo</string>
+    <string name="downloads_share_file">Compartir archivo</string>
+    <string name="downloads_retry">Reintentar descarga</string>
+    <string name="downloads_eta">quedan ~%1$s</string>
     <string name="downloads_remove_from_history">Quitar del historial</string>
     <string name="downloads_cancel_download">Cancelar descarga</string>
     <string name="downloads_show_full_error">Ver el error completo</string>

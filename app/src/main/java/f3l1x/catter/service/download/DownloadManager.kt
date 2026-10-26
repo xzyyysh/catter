@@ -34,6 +34,8 @@ object DownloadManager {
         val thumbnailUrl: String,
         val qualityLabel: String,
         val message: String,
+        val request: DownloadRequest,
+        val destination: Destination,
     )
 
     private class Request(
@@ -71,6 +73,12 @@ object DownloadManager {
 
     fun dismissFailure(id: String) {
         _failures.update { failures -> failures.filterNot { it.id == id } }
+    }
+
+    fun retry(context: Context, id: String) {
+        val failure = _failures.value.firstOrNull { it.id == id } ?: return
+        _failures.update { failures -> failures.filterNot { it.id == id } }
+        start(context, failure.request, failure.destination)
     }
 
     fun cancel(id: String) {
@@ -141,6 +149,8 @@ object DownloadManager {
                     qualityLabel = job.label,
                     // Raw exception text, kept as-is because it is technical detail.
                     message = throwable.message ?: throwable.toString(),
+                    request = job,
+                    destination = queued.destination,
                 )
             }
         } finally {

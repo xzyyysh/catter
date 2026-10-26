@@ -3,6 +3,7 @@ package f3l1x.catter.ui.downloads
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +62,7 @@ import f3l1x.catter.ui.components.RemoteThumbnail
 import f3l1x.catter.util.Logger
 import f3l1x.catter.util.formatBytes
 import f3l1x.catter.util.formatDate
+import f3l1x.catter.util.formatRemaining
 import f3l1x.catter.util.formatSpeed
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.Dispatchers
@@ -131,6 +133,15 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             }
     }
 
+    fun share(record: DownloadRecord) {
+        val intent = DownloadFiles.shareIntent(context, record) ?: return
+        runCatching { context.startActivity(Intent.createChooser(intent, null)) }
+            .onFailure {
+                Logger.w("no sharer for ${record.fileName}", it)
+                message = context.getString(R.string.message_no_app_for_file)
+            }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -169,6 +180,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                 FailedRow(
                     failure = failure,
                     onDetails = { failedDetails = failure },
+                    onRetry = { DownloadManager.retry(context, failure.id) },
                     onDismiss = { DownloadManager.dismissFailure(failure.id) },
                 )
             }
@@ -185,6 +197,10 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                     onLocate = {
                         expandedId = null
                         locate(record)
+                    },
+                    onShare = {
+                        expandedId = null
+                        share(record)
                     },
                     onDelete = {
                         expandedId = null
@@ -458,6 +474,7 @@ private fun HistoryRow(
     expanded: Boolean,
     onExpand: (Boolean) -> Unit,
     onLocate: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -538,6 +555,22 @@ private fun HistoryRow(
                             },
                             onClick = onLocate,
                         )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.downloads_share_file),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = TablerIcons["share"],
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            onClick = onShare,
+                        )
                     }
                     DropdownMenuItem(
                         text = {
@@ -586,6 +619,7 @@ private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
         else -> formatBytes(progress.bytes)
     }
     val speed = progress?.speed ?: 0L
+    val eta = progress?.eta ?: 0L
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -629,6 +663,15 @@ private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
                             maxLines = 1,
                         )
                     }
+                    if (eta > 0L) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.downloads_eta, formatRemaining(eta)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
                 ProgressLine(
@@ -664,6 +707,7 @@ private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
 private fun FailedRow(
     failure: DownloadManager.Failure,
     onDetails: () -> Unit,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Surface(
@@ -707,6 +751,20 @@ private fun FailedRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onRetry)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    imageVector = TablerIcons["refresh"],
+                    contentDescription = stringResource(R.string.downloads_retry),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
                 )
             }
 

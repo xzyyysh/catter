@@ -24,6 +24,12 @@ fun formatSpeed(bytesPerSecond: Long): String = when {
     else -> "$bytesPerSecond B/s"
 }
 
+fun formatRemaining(seconds: Long): String = when {
+    seconds >= 3600L -> "${seconds / 3600L}h ${(seconds % 3600L) / 60L}m"
+    seconds >= 60L -> "${seconds / 60L}m ${seconds % 60L}s"
+    else -> "${seconds.coerceAtLeast(1L)}s"
+}
+
 fun formatDate(context: Context, timestamp: Long): String {
     val now = Calendar.getInstance()
     val then = Calendar.getInstance().apply { timeInMillis = timestamp }

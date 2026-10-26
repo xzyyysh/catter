@@ -36,6 +36,13 @@ data class DownloadProgress(
 
     val fraction: Float
         get() = if (isDeterminate) (bytes.toDouble() / total).toFloat().coerceIn(0f, 1f) else 0f
+
+    val eta: Long
+        get() = if (isDeterminate && speed > 0L) {
+            ((total - bytes).coerceAtLeast(0L) / speed)
+        } else {
+            0L
+        }
 }
 
 object Downloader {

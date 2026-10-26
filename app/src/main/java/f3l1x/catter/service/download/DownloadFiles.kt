@@ -49,6 +49,15 @@ object DownloadFiles {
         false
     }
 
+    fun shareIntent(context: Context, record: DownloadRecord): Intent? {
+        val uri = viewIntent(context, record)?.data ?: return null
+        return Intent(Intent.ACTION_SEND).apply {
+            type = record.mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
     fun viewIntent(context: Context, record: DownloadRecord): Intent? = runCatching {
         val uri = Uri.parse(record.uri)
         val target = if (uri.scheme == "content") {
