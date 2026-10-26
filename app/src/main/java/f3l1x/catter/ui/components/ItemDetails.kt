@@ -41,6 +41,7 @@ import f3l1x.catter.service.source.VideoDetails
 fun ItemDetails(
     details: VideoDetails,
     onSelect: (Quality) -> Unit,
+    onDownloadThumbnail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var audioOnly by rememberSaveable(details.id) { mutableStateOf(false) }
@@ -53,12 +54,22 @@ fun ItemDetails(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RemoteThumbnail(
-                    url = details.thumbnailUrl,
-                    modifier = Modifier
-                        .size(width = 92.dp, height = 52.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
+                Box {
+                    RemoteThumbnail(
+                        url = details.thumbnailUrl,
+                        modifier = Modifier
+                            .size(width = 92.dp, height = 52.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                    if (details.thumbnailUrl.isNotBlank()) {
+                        ThumbnailDownloadButton(
+                            onClick = onDownloadThumbnail,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(3.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

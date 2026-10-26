@@ -2,6 +2,7 @@ package f3l1x.catter.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,7 @@ fun PostDetails(
     post: MediaPost,
     onDownload: (MediaItem, Int) -> Unit,
     onDownloadAll: () -> Unit,
+    onDownloadThumbnail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -43,12 +45,22 @@ fun PostDetails(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RemoteThumbnail(
-                    url = post.thumbnailUrl,
-                    modifier = Modifier
-                        .size(width = 92.dp, height = 52.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
+                Box {
+                    RemoteThumbnail(
+                        url = post.thumbnailUrl,
+                        modifier = Modifier
+                            .size(width = 92.dp, height = 52.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                    if (post.thumbnailUrl.isNotBlank()) {
+                        ThumbnailDownloadButton(
+                            onClick = onDownloadThumbnail,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(3.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

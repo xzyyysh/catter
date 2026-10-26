@@ -8,6 +8,11 @@ import f3l1x.catter.service.model.MediaPost
 import f3l1x.catter.service.source.Quality
 import f3l1x.catter.service.source.VideoDetails
 import f3l1x.catter.service.source.YouTube
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 object Requests {
 
@@ -65,6 +70,57 @@ object Requests {
             kind = item.kind,
             resolve = { DownloadTicket(item.url, "", audioUrl = item.audioUrl) },
         )
+    }
+
+    fun thumbnail(context: Context, title: String, author: String, url: String): DownloadRequest {
+        val extension = imageExtension(url)
+
+        return DownloadRequest(
+            title = title,
+            author = author,
+            thumbnailUrl = url,
+            label = context.getString(R.string.item_thumbnail),
+            fileName = Downloader.fileName(
+                title = title.ifBlank { "Catter" },
+                artist = author,
+                label = "thumbnail",
+                extension = extension,
+            ),
+            mimeType = mimeTypeOf(extension),
+            kind = MediaKind.Photo,
+            resolve = { DownloadTicket(resolveThumbnail(url), "") },
+        )
+    }
+
+    private suspend fun resolveThumbnail(url: String): String = withContext(Dispatchers.IO) {
+        val candidates = if (url.contains("maxresdefault")) {
+            listOf(url, url.replace("maxresdefault", "hqdefault"))
+        } else {
+            listOf(url)
+        }
+        candidates.firstOrNull { reachable(it) }
+            ?: throw IOException("Thumbnail is not available")
+    }
+
+    private fun reachable(url: String): Boolean = runCatching {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 10_000
+            readTimeout = 10_000
+            instanceFollowRedirects = true
+        }
+        try {
+            connection.responseCode in 200..299
+        } finally {
+            connection.disconnect()
+        }
+    }.getOrDefault(false)
+
+    private fun mimeTypeOf(extension: String): String = when (extension) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        else -> "image/jpeg"
     }
 
     private fun imageExtension(url: String): String {

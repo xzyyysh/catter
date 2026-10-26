@@ -44,6 +44,8 @@
     <string name="item_video">Video</string>
     <string name="item_gif">Gif</string>
     <string name="item_photo">Photo</string>
+    <string name="item_thumbnail">Thumbnail</string>
+    <string name="thumbnail_download">Download thumbnail</string>
     <string name="item_video_numbered">Video %1$d</string>
     <string name="item_gif_numbered">Gif %1$d</string>
     <string name="item_audio_numbered">Audio %1$d</string>

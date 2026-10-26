@@ -154,6 +154,15 @@ fun HomeScreen(
         Resolver.markQueued(context.getString(R.string.message_added_to_queue_count, post.items.size))
     }
 
+    fun startThumbnail(title: String, author: String, url: String) {
+        if (url.isBlank()) return
+        Logger.d("thumbnail queued: $url")
+        queue(Requests.thumbnail(context, title, author, url))
+        Haptics.lightSuccess(context)
+        message = context.getString(R.string.message_added_to_queue)
+        messageIsError = false
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -317,6 +326,13 @@ fun HomeScreen(
                                 startDownload(current.details, quality)
                             }
                         },
+                        onDownloadThumbnail = {
+                            startThumbnail(
+                                title = current.details.title,
+                                author = current.details.author,
+                                url = current.details.thumbnailUrl,
+                            )
+                        },
                         modifier = Modifier.padding(top = 12.dp),
                     )
 
@@ -324,6 +340,13 @@ fun HomeScreen(
                         post = current.post,
                         onDownload = { item, index -> startItem(current.post, item, index) },
                         onDownloadAll = { startAll(current.post) },
+                        onDownloadThumbnail = {
+                            startThumbnail(
+                                title = current.post.title,
+                                author = current.post.author,
+                                url = current.post.thumbnailUrl,
+                            )
+                        },
                         modifier = Modifier.padding(top = 12.dp),
                     )
 
