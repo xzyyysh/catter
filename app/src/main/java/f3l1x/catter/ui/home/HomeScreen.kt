@@ -60,6 +60,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.R
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.service.DownloadRequest
@@ -127,6 +129,7 @@ fun HomeScreen(
 
     val loading = state is ResolveState.Loading
     val hasCard = state is ResolveState.Video || state is ResolveState.Post
+    val canClear = hasCard || loading || url.isNotEmpty()
 
     fun queue(request: DownloadRequest) {
         DownloadManager.start(context, request, SaveLocation.destination(preferences.saveTreeUri, request.kind))
@@ -135,20 +138,20 @@ fun HomeScreen(
     fun startDownload(details: VideoDetails, quality: Quality) {
         Logger.d("download queued: ${quality.name}")
         queue(Requests.youtube(details, quality))
-        Resolver.markQueued("Added to queue")
+        Resolver.markQueued(context.getString(R.string.message_added_to_queue))
     }
 
     fun startItem(post: MediaPost, item: MediaItem, index: Int) {
         Logger.d("post queued: ${post.id}")
-        queue(Requests.post(post, item, index))
+        queue(Requests.post(context, post, item, index))
         Haptics.lightSuccess(context)
-        message = "Added to queue"
+        message = context.getString(R.string.message_added_to_queue)
         messageIsError = false
     }
 
     fun startAll(post: MediaPost) {
-        post.items.forEachIndexed { index, item -> queue(Requests.post(post, item, index)) }
-        Resolver.markQueued("${post.items.size} added to queue")
+        post.items.forEachIndexed { index, item -> queue(Requests.post(context, post, item, index)) }
+        Resolver.markQueued(context.getString(R.string.message_added_to_queue_count, post.items.size))
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -160,7 +163,7 @@ fun HomeScreen(
         if (granted && quality != null && details != null) {
             startDownload(details, quality)
         } else if (!granted) {
-            message = "Storage permission is required"
+            message = context.getString(R.string.message_storage_permission_required)
             messageIsError = true
         }
     }
@@ -221,7 +224,7 @@ fun HomeScreen(
             GlitchTitle()
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "A simple native media downloader for a change that uses direct API services.",
+                text = stringResource(R.string.home_tagline),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -231,11 +234,14 @@ fun HomeScreen(
             CatterTextField(
                 value = url,
                 onValueChange = { url = it },
-                placeholder = "Paste a link",
+                placeholder = stringResource(R.string.home_placeholder),
                 leadingIcon = TablerIcons.Link,
-                trailingIcon = if (hasCard || loading) TablerIcons.X else TablerIcons.Clipboard,
+                trailingIcon = if (canClear) TablerIcons.X else TablerIcons.Clipboard,
+                trailingContentDescription = stringResource(
+                    if (canClear) R.string.action_clear else R.string.action_paste,
+                ),
                 onTrailingClick = {
-                    if (hasCard || loading) {
+                    if (canClear) {
                         Logger.d("clear item")
                         message = null
                         Resolver.clear()
@@ -328,13 +334,13 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Supported platforms",
+                    text = stringResource(R.string.home_supported_platforms),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(2.dp))
                 Text(
-                    text = "click here",
+                    text = stringResource(R.string.home_click_here),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -354,47 +360,47 @@ fun HomeScreen(
 @Composable
 private fun SupportedPlatformsDialog(onDismissRequest: () -> Unit) {
     CatterDialog(
-        title = "Supported platforms",
+        title = stringResource(R.string.home_supported_platforms),
         onDismissRequest = onDismissRequest,
     ) {
         Spacer(Modifier.height(12.dp))
         PlatformRow(
             icon = TablerIcons.Youtube,
-            name = "YouTube + Music",
-            formats = "MP4 · MP3",
+            name = stringResource(R.string.platform_youtube),
+            formats = stringResource(R.string.platform_formats_mp4_mp3),
         )
         Spacer(Modifier.height(10.dp))
         PlatformRow(
             icon = TablerIcons["brand-instagram"],
-            name = "Instagram",
-            formats = "MP4 · JPG",
+            name = stringResource(R.string.platform_instagram),
+            formats = stringResource(R.string.platform_formats_mp4_jpg),
         )
         Spacer(Modifier.height(10.dp))
         PlatformRow(
             icon = TablerIcons["brand-tiktok"],
-            name = "TikTok",
-            formats = "MP4 · JPG",
+            name = stringResource(R.string.platform_tiktok),
+            formats = stringResource(R.string.platform_formats_mp4_jpg),
         )
         Spacer(Modifier.height(10.dp))
         PlatformRow(
             icon = TablerIcons["brand-pinterest"],
-            name = "Pinterest",
-            formats = "MP4 · GIF · JPG",
+            name = stringResource(R.string.platform_pinterest),
+            formats = stringResource(R.string.platform_formats_mp4_gif_jpg),
         )
         Spacer(Modifier.height(10.dp))
         PlatformRow(
             icon = TablerIcons["brand-reddit"],
-            name = "Reddit",
-            formats = "MP4 · GIF · JPG",
+            name = stringResource(R.string.platform_reddit),
+            formats = stringResource(R.string.platform_formats_mp4_gif_jpg),
         )
         Spacer(Modifier.height(10.dp))
         PlatformRow(
             icon = TablerIcons["brand-x"],
-            name = "X",
-            formats = "MP4",
+            name = stringResource(R.string.platform_x),
+            formats = stringResource(R.string.platform_formats_mp4),
         )
         Text(
-            text = "More sources soon!",
+            text = stringResource(R.string.home_more_sources),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
             modifier = Modifier.padding(top = 12.dp),

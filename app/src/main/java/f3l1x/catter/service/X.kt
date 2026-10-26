@@ -129,6 +129,7 @@ object X {
 
         return when {
             line.isNotEmpty() -> line.take(140)
+            // Fallback titles also become file names, so they stay in English.
             author.isNotBlank() -> "$author on X"
             else -> "X video"
         }

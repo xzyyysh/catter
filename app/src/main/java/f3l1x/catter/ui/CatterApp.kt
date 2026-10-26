@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -63,9 +64,11 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import f3l1x.catter.R
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
@@ -79,10 +82,10 @@ import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-private enum class CatterDestination(val label: String, val icon: ImageVector) {
-    Home("Home", TablerIcons.Home),
-    Downloads("Downloads", TablerIcons["download"]),
-    Settings("Settings", TablerIcons.Settings),
+private enum class CatterDestination(@param:StringRes val labelRes: Int, val icon: ImageVector) {
+    Home(R.string.nav_home, TablerIcons.Home),
+    Downloads(R.string.nav_downloads, TablerIcons["download"]),
+    Settings(R.string.nav_settings, TablerIcons.Settings),
 }
 
 @Composable
@@ -260,7 +263,7 @@ private fun RequireInternet() {
 
     LaunchedEffect(online) {
         if (online) return@LaunchedEffect
-        Toast.makeText(context, "No internet connection available.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.message_no_internet), Toast.LENGTH_SHORT).show()
         delay(1200)
         activity?.finish()
     }
@@ -342,7 +345,7 @@ private fun FloatingNavigationItem(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = destination.icon,
-                contentDescription = destination.label,
+                contentDescription = stringResource(destination.labelRes),
                 tint = contentColor,
                 modifier = Modifier.size(20.dp),
             )
@@ -356,7 +359,7 @@ private fun FloatingNavigationItem(
         if (selected) {
             Spacer(Modifier.width(8.dp))
             Text(
-                text = destination.label,
+                text = stringResource(destination.labelRes),
                 style = MaterialTheme.typography.labelLarge,
                 color = contentColor,
             )

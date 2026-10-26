@@ -1,5 +1,8 @@
 package f3l1x.catter.service
 
+import android.content.Context
+import f3l1x.catter.R
+
 object Requests {
 
     fun youtube(details: VideoDetails, quality: Quality): DownloadRequest {
@@ -17,17 +20,17 @@ object Requests {
         )
     }
 
-    fun post(post: MediaPost, item: MediaItem, index: Int): DownloadRequest {
+    fun post(context: Context, post: MediaPost, item: MediaItem, index: Int): DownloadRequest {
         val multi = post.items.size > 1
         val video = item.kind == MediaKind.Video
         val gif = item.kind == MediaKind.Gif
         val label = when {
-            video && multi -> "Video ${index + 1}"
-            video -> "Video"
-            gif && multi -> "Gif ${index + 1}"
-            gif -> "Gif"
-            multi -> "Photo ${index + 1}"
-            else -> "Photo"
+            video && multi -> context.getString(R.string.item_video_numbered, index + 1)
+            video -> context.getString(R.string.item_video)
+            gif && multi -> context.getString(R.string.item_gif_numbered, index + 1)
+            gif -> context.getString(R.string.item_gif)
+            multi -> context.getString(R.string.item_photo_numbered, index + 1)
+            else -> context.getString(R.string.item_photo)
         }
         val extension = when {
             video -> "mp4"

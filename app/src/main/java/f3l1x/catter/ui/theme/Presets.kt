@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.luminance
 
 const val DEFAULT_THEME_ID = "default"
 
+// Theme and variant names are brand names, so they stay out of strings.xml.
 enum class ThemeFamily(val label: String) {
     Catter("Catter"),
     Catppuccin("Catppuccin"),

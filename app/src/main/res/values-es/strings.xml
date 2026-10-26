@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- App -->
+    <string name="app_name">Catter</string>
+
+    <!-- Common actions -->
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_remove">Quitar</string>
+    <string name="action_download">Descargar</string>
+    <string name="action_hide">Ocultar</string>
+    <string name="action_later">Más tarde</string>
+    <string name="action_back">Atrás</string>
+    <string name="action_clear">Borrar</string>
+    <string name="action_paste">Pegar del portapapeles</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_downloads">Descargas</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Home -->
+    <string name="home_tagline">Un descargador de medios nativo y sencillo, para variar, que usa servicios de API directos.</string>
+    <string name="home_placeholder">Pega un enlace</string>
+    <string name="home_supported_platforms">Plataformas compatibles</string>
+    <string name="home_click_here">haz clic aquí</string>
+    <string name="home_more_sources">¡Más fuentes pronto!</string>
+
+    <!-- Platforms -->
+    <string name="platform_youtube">YouTube + Music</string>
+    <string name="platform_instagram">Instagram</string>
+    <string name="platform_tiktok">TikTok</string>
+    <string name="platform_pinterest">Pinterest</string>
+    <string name="platform_reddit">Reddit</string>
+    <string name="platform_x">X</string>
+    <string name="platform_formats_mp4_mp3">MP4 · MP3</string>
+    <string name="platform_formats_mp4_jpg">MP4 · JPG</string>
+    <string name="platform_formats_mp4_gif_jpg">MP4 · GIF · JPG</string>
+    <string name="platform_formats_mp4">MP4</string>
+
+    <!-- Media items -->
+    <string name="item_video">Vídeo</string>
+    <string name="item_gif">Gif</string>
+    <string name="item_photo">Foto</string>
+    <string name="item_video_numbered">Vídeo %1$d</string>
+    <string name="item_gif_numbered">Gif %1$d</string>
+    <string name="item_audio_numbered">Audio %1$d</string>
+    <string name="item_photo_numbered">Foto %1$d</string>
+
+    <!-- Post details -->
+    <plurals name="post_item_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="other">%1$d elementos</item>
+    </plurals>
+    <string name="post_download_all">Descargar todo</string>
+
+    <!-- Downloads -->
+    <string name="downloads_title">Descargas</string>
+    <plurals name="downloads_summary">
+        <item quantity="one">%1$d archivo · %2$s</item>
+        <item quantity="other">%1$d archivos · %2$s</item>
+    </plurals>
+    <string name="downloads_section_queue">Cola</string>
+    <string name="downloads_section_failed">Fallidas</string>
+    <string name="downloads_section_history">Historial</string>
+    <string name="downloads_empty">Todavía no hay descargas</string>
+    <string name="downloads_status_queued">En cola · %1$s</string>
+    <string name="downloads_status_preparing">Preparando %1$s</string>
+    <string name="downloads_progress">%1$s / %2$s</string>
+    <string name="downloads_failed_label">Falló</string>
+    <string name="downloads_file_deleted">Archivo eliminado</string>
+    <string name="downloads_more_options">Más opciones</string>
+    <string name="downloads_locate_file">Ubicar archivo</string>
+    <string name="downloads_remove_from_history">Quitar del historial</string>
+    <string name="downloads_cancel_download">Cancelar descarga</string>
+    <string name="downloads_show_full_error">Ver el error completo</string>
+    <string name="downloads_dismiss">Descartar</string>
+    <string name="downloads_copy_error">Copiar error</string>
+    <string name="downloads_error_label">error</string>
+    <string name="downloads_copied_label">copiado</string>
+    <string name="downloads_delete_all">Eliminar todas las descargas</string>
+    <string name="downloads_delete_file_title">¿Eliminar archivo?</string>
+    <string name="downloads_remove_history_title">¿Quitar del historial?</string>
+    <string name="downloads_delete_file_message">%1$s se eliminará permanentemente de tu dispositivo.</string>
+    <string name="downloads_missing_file_message">El archivo ya no está en tu dispositivo. Esto quita la entrada del historial.</string>
+    <string name="downloads_delete_all_title">¿Eliminar todas las descargas?</string>
+    <plurals name="downloads_delete_all_message">
+        <item quantity="one">%1$d archivo (%2$s) se eliminará permanentemente.</item>
+        <item quantity="other">%1$d archivos (%2$s) se eliminarán permanentemente.</item>
+    </plurals>
+    <string name="downloads_delete_all_none">No queda ningún archivo en tu dispositivo.</string>
+    <plurals name="downloads_delete_all_missing">
+        <item quantity="one">%1$d entrada ya marcada como eliminada se quitará del historial.</item>
+        <item quantity="other">%1$d entradas ya marcadas como eliminadas se quitarán del historial.</item>
+    </plurals>
+    <string name="downloads_failed_title">La descarga falló</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_value">%1$s · %2$s</string>
+    <string name="settings_theme_system">Sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Oscuro</string>
+    <string name="settings_material_you">Material You</string>
+    <string name="settings_material_you_description">Usa los colores del fondo de pantalla</string>
+    <string name="settings_material_you_unsupported">Requiere Android 12 o superior</string>
+    <string name="settings_amoled">AMOLED</string>
+    <string name="settings_amoled_description">Superficies totalmente negras en el tema actual</string>
+    <string name="settings_storage">Almacenamiento</string>
+    <string name="settings_save_location">Ubicación de guardado</string>
+    <string name="settings_folder_fallback">Carpeta</string>
+    <string name="settings_save_location_description">Los vídeos van a videos/ y los audios a audios/ dentro de esta carpeta.</string>
+    <string name="settings_choose_folder">Elegir carpeta</string>
+    <string name="settings_use_default">Usar la predeterminada</string>
+    <string name="settings_about">Acerca de</string>
+    <string name="settings_version">Versión</string>
+    <string name="settings_version_value">v%1$s</string>
+    <string name="settings_version_dialog_title">Versión %1$s</string>
+    <string name="settings_no_changelog">No hay cambios disponibles para esta versión.</string>
+    <string name="settings_check_updates">Buscar actualizaciones</string>
+    <string name="settings_checking">Comprobando…</string>
+    <string name="settings_check_tap">Toca para comprobar</string>
+    <string name="settings_check_latest">Tienes la última versión</string>
+    <string name="settings_check_failed">No se pudieron buscar actualizaciones</string>
+    <string name="settings_check_auto">Comprobar automáticamente</string>
+    <string name="settings_check_auto_description">Busca versiones nuevas cada hora</string>
+    <string name="settings_developer">Desarrollador</string>
+    <string name="settings_developer_value">xzyyysh (antes: f3l1x)</string>
+    <string name="settings_github">GitHub</string>
+    <string name="settings_github_value">xzyyysh/catter</string>
+    <string name="settings_debug">Depuración</string>
+    <string name="settings_debug_logs">Registros de depuración</string>
+    <string name="settings_debug_logs_description">Escribe registros detallados en logcat, también en compilaciones de release</string>
+
+    <!-- Theme picker -->
+    <string name="theme_picker_title">Tema</string>
+    <string name="theme_tag_light">Claro</string>
+    <string name="theme_tag_dark">Oscuro</string>
+    <string name="theme_tag_default">Predeterminado</string>
+
+    <!-- Updates -->
+    <string name="update_available">Actualización disponible</string>
+    <string name="update_allow_install">Permite instalar apps desde Catter y vuelve a tocar descargar</string>
+    <string name="update_download_failed">La descarga falló</string>
+    <string name="update_no_installer">No hay ningún instalador disponible</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_progress">Progreso de descargas</string>
+    <string name="notification_channel_progress_description">Progreso de las descargas activas</string>
+    <string name="notification_channel_result">Resultados de descargas</string>
+    <string name="notification_channel_result_description">Te avisa cuando una descarga termina o falla</string>
+    <string name="notification_preparing">Preparando %1$s</string>
+    <string name="notification_preparing_download">Preparando la descarga</string>
+    <string name="notification_complete">Descarga completada</string>
+    <string name="notification_failed">La descarga falló</string>
+    <string name="notification_more">+%1$d más</string>
+
+    <!-- Messages -->
+    <string name="message_added_to_queue">Añadido a la cola</string>
+    <string name="message_added_to_queue_count">%1$d añadidos a la cola</string>
+    <string name="message_storage_permission_required">Se requiere permiso de almacenamiento</string>
+    <string name="message_no_internet">No hay conexión a internet.</string>
+    <string name="message_unsupported_link">Enlace no compatible</string>
+    <string name="message_video_load_failed">No se pudo cargar este vídeo</string>
+    <string name="message_post_load_failed">No se pudo cargar esta publicación</string>
+    <string name="message_no_app_for_file">Ninguna app puede abrir este archivo</string>
+    <string name="message_deleted">Eliminado</string>
+    <string name="message_history_cleared">Historial borrado</string>
+
+    <!-- Formatting -->
+    <string name="date_today">Hoy, %1$s</string>
+
+</resources>

@@ -496,6 +496,7 @@ object Reddit {
 
     private fun title(raw: String, author: String): String {
         val line = raw.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+        // Fallback titles also become file names, so they stay in English.
         return when {
             line.isNotEmpty() -> line.take(140)
             author.isNotBlank() -> "$author on Reddit"

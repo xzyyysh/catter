@@ -1,6 +1,7 @@
 package f3l1x.catter.service
 
 import android.content.Context
+import f3l1x.catter.R
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ object Resolver {
         val target = Links.parse(link)
         if (target == null) {
             Logger.w("unsupported link")
-            _state.value = ResolveState.Failed("Unsupported link")
+            _state.value = ResolveState.Failed(context.getString(R.string.message_unsupported_link))
             return
         }
 
@@ -47,7 +48,7 @@ object Resolver {
 
         job = scope.launch {
             when (target.source) {
-                Source.YouTube -> loadVideo(current, target.id)
+                Source.YouTube -> loadVideo(appContext, current, target.id)
                 Source.Instagram -> loadPost(appContext, current, target.id, treeUri) { Instagram.post(it) }
                 Source.TikTok -> loadPost(appContext, current, target.id, treeUri) { TikTok.post(it) }
                 Source.Pinterest -> loadPost(appContext, current, target.id, treeUri) { Pinterest.post(it) }
@@ -70,7 +71,7 @@ object Resolver {
 
     private fun active(current: Int): Boolean = current == token
 
-    private suspend fun loadVideo(current: Int, id: String) {
+    private suspend fun loadVideo(context: Context, current: Int, id: String) {
         runCatching { YouTube.details(id) }
             .onSuccess { details ->
                 if (!active(current)) return@onSuccess
@@ -80,7 +81,7 @@ object Resolver {
             .onFailure {
                 if (!active(current)) return@onFailure
                 Logger.w("video resolve failed: $id", it)
-                _state.value = ResolveState.Failed("Could not load this video")
+                _state.value = ResolveState.Failed(context.getString(R.string.message_video_load_failed))
             }
     }
 
@@ -99,10 +100,12 @@ object Resolver {
                     val item = post.items.first()
                     DownloadManager.start(
                         context = context,
-                        request = Requests.post(post, item, 0),
+                        request = Requests.post(context, post, item, 0),
                         destination = SaveLocation.destination(treeUri, item.kind),
                     )
-                    _state.value = ResolveState.Queued("Added to queue")
+                    _state.value = ResolveState.Queued(
+                        context.getString(R.string.message_added_to_queue),
+                    )
                 } else {
                     _state.value = ResolveState.Post(post)
                 }
@@ -110,7 +113,7 @@ object Resolver {
             .onFailure {
                 if (!active(current)) return@onFailure
                 Logger.w("post resolve failed: $target", it)
-                _state.value = ResolveState.Failed("Could not load this post")
+                _state.value = ResolveState.Failed(context.getString(R.string.message_post_load_failed))
             }
     }
 }

@@ -30,20 +30,20 @@ object DownloadNotifications {
 
         val progress = NotificationChannel(
             CHANNEL_PROGRESS,
-            "Download progress",
+            context.getString(R.string.notification_channel_progress),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Progress of active downloads"
+            description = context.getString(R.string.notification_channel_progress_description)
             setShowBadge(false)
             setSound(null, null)
         }
 
         val result = NotificationChannel(
             CHANNEL_RESULT,
-            "Download results",
+            context.getString(R.string.notification_channel_result),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Tells you when a download finishes or fails"
+            description = context.getString(R.string.notification_channel_result_description)
         }
 
         manager.createNotificationChannels(listOf(progress, result))
@@ -54,7 +54,7 @@ object DownloadNotifications {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle(task?.title ?: "Catter")
+            .setContentTitle(task?.title ?: context.getString(R.string.app_name))
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setSilent(true)
@@ -66,7 +66,9 @@ object DownloadNotifications {
             stats == null -> {
                 builder.setProgress(0, 0, true)
                 builder.setContentText(
-                    task?.let { "Preparing ${it.qualityLabel}" } ?: "Preparing download",
+                    task?.let {
+                        context.getString(R.string.notification_preparing, it.qualityLabel)
+                    } ?: context.getString(R.string.notification_preparing_download),
                 )
             }
 
@@ -85,7 +87,9 @@ object DownloadNotifications {
             }
         }
 
-        if (tasks.size > 1) builder.setSubText("+${tasks.size - 1} more")
+        if (tasks.size > 1) {
+            builder.setSubText(context.getString(R.string.notification_more, tasks.size - 1))
+        }
         return builder.build()
     }
 
@@ -100,7 +104,7 @@ object DownloadNotifications {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle("Download complete")
+            .setContentTitle(context.getString(R.string.notification_complete))
             .setContentText(record.title)
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
@@ -117,7 +121,7 @@ object DownloadNotifications {
     fun failed(context: Context, title: String, error: String?) {
         val notification = NotificationCompat.Builder(context, CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle("Download failed")
+            .setContentTitle(context.getString(R.string.notification_failed))
             .setContentText(error?.take(120) ?: title)
             .setStyle(NotificationCompat.BigTextStyle().bigText("$title\n${error.orEmpty()}"))
             .setAutoCancel(true)

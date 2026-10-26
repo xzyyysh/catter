@@ -50,9 +50,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
 import f3l1x.catter.BuildConfig
+import f3l1x.catter.R
 import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
@@ -87,7 +89,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             .padding(horizontal = 20.dp),
     ) {
         Text(
-            text = "Settings",
+            text = stringResource(R.string.settings_title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 20.dp, bottom = 16.dp),
@@ -158,7 +160,7 @@ private fun AppearanceCard(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Appearance",
+                    text = stringResource(R.string.settings_appearance),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -185,12 +187,14 @@ private fun AppearanceCard(
             Spacer(Modifier.height(12.dp))
 
             SettingSwitchRow(
-                title = "Material You",
-                subtitle = if (dynamicSupported) {
-                    "Use system wallpaper colors"
-                } else {
-                    "Requires Android 12+"
-                },
+                title = stringResource(R.string.settings_material_you),
+                subtitle = stringResource(
+                    if (dynamicSupported) {
+                        R.string.settings_material_you_description
+                    } else {
+                        R.string.settings_material_you_unsupported
+                    },
+                ),
                 checked = dynamicColor && dynamicSupported,
                 enabled = dynamicSupported && !amoled && preset.id == DEFAULT_THEME_ID,
                 onCheckedChange = onDynamicColor,
@@ -201,8 +205,8 @@ private fun AppearanceCard(
             Spacer(Modifier.height(12.dp))
 
             SettingSwitchRow(
-                title = "AMOLED",
-                subtitle = "Pure black surfaces on the current preset",
+                title = stringResource(R.string.settings_amoled),
+                subtitle = stringResource(R.string.settings_amoled_description),
                 checked = amoled,
                 enabled = true,
                 onCheckedChange = onAmoled,
@@ -223,12 +227,16 @@ private fun ThemePresetRow(preset: ThemeVariant, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Theme",
+                text = stringResource(R.string.settings_theme),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "${preset.family.label} · ${preset.name}",
+                text = stringResource(
+                    R.string.settings_theme_value,
+                    preset.family.label,
+                    preset.name,
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -341,7 +349,7 @@ private fun ThemeModeSelector(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = mode.label,
+                    text = stringResource(mode.labelRes),
                     style = MaterialTheme.typography.labelMedium,
                     color = contentColor,
                 )
@@ -366,7 +374,8 @@ private fun StorageCard(preferences: AppPreferences) {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         }
-        val label = DocumentFile.fromTreeUri(context, uri)?.name ?: "Folder"
+        val label = DocumentFile.fromTreeUri(context, uri)?.name
+            ?: context.getString(R.string.settings_folder_fallback)
         preferences.updateSaveTree(uri.toString(), label)
 
         scope.launch(Dispatchers.IO) {
@@ -397,7 +406,7 @@ private fun StorageCard(preferences: AppPreferences) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Storage",
+                    text = stringResource(R.string.settings_storage),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -408,7 +417,7 @@ private fun StorageCard(preferences: AppPreferences) {
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Save location",
+                text = stringResource(R.string.settings_save_location),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -419,19 +428,22 @@ private fun StorageCard(preferences: AppPreferences) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Videos go to videos/ and audios go to audios/ inside this folder.",
+                text = stringResource(R.string.settings_save_location_description),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = { picker.launch(null) }) {
-                    Text("Choose folder", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = stringResource(R.string.settings_choose_folder),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
                 if (preferences.saveTreeUri != null) {
                     TextButton(onClick = { preferences.updateSaveTree(null, null) }) {
                         Text(
-                            text = "Use default",
+                            text = stringResource(R.string.settings_use_default),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -470,7 +482,7 @@ private fun AboutCard(preferences: AppPreferences) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "About",
+                    text = stringResource(R.string.settings_about),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -482,26 +494,26 @@ private fun AboutCard(preferences: AppPreferences) {
 
             AboutRow(
                 icon = TablerIcons["tag"],
-                label = "Version",
-                value = "v${BuildConfig.VERSION_NAME}",
+                label = stringResource(R.string.settings_version),
+                value = stringResource(R.string.settings_version_value, BuildConfig.VERSION_NAME),
                 onClick = { showVersion = true },
             )
             Spacer(Modifier.height(10.dp))
             AboutRow(
                 icon = TablerIcons["refresh"],
-                label = "Check for updates",
+                label = stringResource(R.string.settings_check_updates),
                 value = when {
-                    checking -> "Checking…"
+                    checking -> stringResource(R.string.settings_checking)
                     checkResult != null -> checkResult.orEmpty()
-                    else -> "Tap to check"
+                    else -> stringResource(R.string.settings_check_tap)
                 },
                 onClick = { UpdateChecker.checkNow(context) },
             )
             Spacer(Modifier.height(10.dp))
             AboutSwitchRow(
                 icon = TablerIcons["clock"],
-                label = "Check automatically",
-                description = "Look for new releases every hour",
+                label = stringResource(R.string.settings_check_auto),
+                description = stringResource(R.string.settings_check_auto_description),
                 checked = preferences.autoUpdateCheck,
                 onCheckedChange = { enabled ->
                     preferences.updateAutoUpdateCheck(enabled)
@@ -511,14 +523,14 @@ private fun AboutCard(preferences: AppPreferences) {
             Spacer(Modifier.height(10.dp))
             AboutRow(
                 icon = TablerIcons.User,
-                label = "Developer",
-                value = "xzyyysh (formerly: f3l1x)",
+                label = stringResource(R.string.settings_developer),
+                value = stringResource(R.string.settings_developer_value),
             )
             Spacer(Modifier.height(10.dp))
             AboutRow(
                 icon = TablerIcons.Github,
-                label = "GitHub",
-                value = "xzyyysh/catter",
+                label = stringResource(R.string.settings_github),
+                value = stringResource(R.string.settings_github_value),
                 onClick = { uriHandler.openUri(GITHUB_URL) },
             )
         }
@@ -544,7 +556,10 @@ private fun VersionDialog(version: String, onDismissRequest: () -> Unit) {
         loading = false
     }
 
-    CatterDialog(title = "Version $version", onDismissRequest = onDismissRequest) {
+    CatterDialog(
+        title = stringResource(R.string.settings_version_dialog_title, version),
+        onDismissRequest = onDismissRequest,
+    ) {
         Spacer(Modifier.height(12.dp))
         when {
             loading -> ProgressLine(
@@ -556,7 +571,7 @@ private fun VersionDialog(version: String, onDismissRequest: () -> Unit) {
             )
 
             notes.isNullOrBlank() -> Text(
-                text = "No changelog available for this version.",
+                text = stringResource(R.string.settings_no_changelog),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -593,7 +608,7 @@ private fun DebugCard(preferences: AppPreferences) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Debug",
+                    text = stringResource(R.string.settings_debug),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -604,8 +619,8 @@ private fun DebugCard(preferences: AppPreferences) {
             Spacer(Modifier.height(12.dp))
 
             SettingSwitchRow(
-                title = "Debug logs",
-                subtitle = "Write verbose logs to logcat, including release builds",
+                title = stringResource(R.string.settings_debug_logs),
+                subtitle = stringResource(R.string.settings_debug_logs_description),
                 checked = preferences.debugLogs,
                 enabled = true,
                 onCheckedChange = preferences::updateDebugLogs,

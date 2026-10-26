@@ -124,6 +124,7 @@ object YouTube {
 
             val result = VideoDetails(
                 id = id,
+                // Fallback titles also become file names, so they stay in English.
                 title = json.optString("title").ifBlank { "YouTube video" },
                 author = json.optString("author_name"),
                 thumbnailUrl = "https://i.ytimg.com/vi/$id/maxresdefault.jpg",

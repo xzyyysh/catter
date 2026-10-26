@@ -139,6 +139,7 @@ object DownloadManager {
                     title = job.title,
                     thumbnailUrl = job.thumbnailUrl,
                     qualityLabel = job.label,
+                    // Raw exception text, kept as-is because it is technical detail.
                     message = throwable.message ?: throwable.toString(),
                 )
             }

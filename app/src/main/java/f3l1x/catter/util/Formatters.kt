@@ -1,5 +1,7 @@
 package f3l1x.catter.util
 
+import android.content.Context
+import f3l1x.catter.R
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -22,7 +24,7 @@ fun formatSpeed(bytesPerSecond: Long): String = when {
     else -> "$bytesPerSecond B/s"
 }
 
-fun formatDate(timestamp: Long): String {
+fun formatDate(context: Context, timestamp: Long): String {
     val now = Calendar.getInstance()
     val then = Calendar.getInstance().apply { timeInMillis = timestamp }
     val sameDay = now.get(Calendar.YEAR) == then.get(Calendar.YEAR) &&
@@ -30,7 +32,7 @@ fun formatDate(timestamp: Long): String {
 
     return if (sameDay) {
         val time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
-        "Today, $time"
+        context.getString(R.string.date_today, time)
     } else {
         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
     }

@@ -136,6 +136,7 @@ object Downloader {
     }
 
     fun fileName(title: String, artist: String, label: String, extension: String): String {
+        // Fallback name is part of the saved file path, so it is not translated.
         val base = buildString {
             append(title.ifBlank { "Catter" })
             if (artist.isNotBlank()) append(" - ").append(artist)

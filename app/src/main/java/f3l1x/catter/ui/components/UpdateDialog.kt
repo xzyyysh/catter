@@ -14,8 +14,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import f3l1x.catter.BuildConfig
+import f3l1x.catter.R
 import f3l1x.catter.util.UpdateInfo
 import f3l1x.catter.util.UpdateState
 import f3l1x.catter.util.formatBytes
@@ -32,19 +34,21 @@ fun UpdateDialog(
     val downloading = state is UpdateState.Downloading
 
     CatterDialog(
-        title = "Update available",
+        title = stringResource(R.string.update_available),
         onDismissRequest = onDismiss,
         actions = { dismiss ->
             TextButton(onClick = dismiss) {
                 Text(
-                    text = if (downloading) "Hide" else "Later",
+                    text = stringResource(
+                        if (downloading) R.string.action_hide else R.string.action_later,
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             TextButton(onClick = onDownload, enabled = !downloading) {
                 Text(
-                    text = "Download",
+                    text = stringResource(R.string.action_download),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (downloading) {
                         MaterialTheme.colorScheme.onSurfaceVariant

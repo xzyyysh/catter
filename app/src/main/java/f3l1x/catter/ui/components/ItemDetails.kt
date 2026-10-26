@@ -82,6 +82,7 @@ fun ItemDetails(
 
             Spacer(Modifier.height(10.dp))
 
+            // Format names are not translated.
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 CategoryTab(
                     label = "MP4",

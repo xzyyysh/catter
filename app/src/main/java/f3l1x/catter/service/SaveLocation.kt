@@ -12,6 +12,7 @@ sealed interface Destination {
 
 object SaveLocation {
 
+    // Folder names are part of the on-disk path, so they are never translated.
     const val BASE_FOLDER = "CatterApp"
     const val VIDEO_FOLDER = "videos"
     const val AUDIO_FOLDER = "audios"

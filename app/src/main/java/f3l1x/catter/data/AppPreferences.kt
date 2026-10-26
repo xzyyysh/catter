@@ -1,16 +1,18 @@
 package f3l1x.catter.data
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import f3l1x.catter.R
 import f3l1x.catter.util.Logger
 
-enum class ThemeMode(val label: String) {
-    System("System"),
-    Light("Light"),
-    Dark("Dark"),
+enum class ThemeMode(@param:StringRes val labelRes: Int) {
+    System(R.string.settings_theme_system),
+    Light(R.string.settings_theme_light),
+    Dark(R.string.settings_theme_dark),
 }
 
 class AppPreferences(context: Context) {

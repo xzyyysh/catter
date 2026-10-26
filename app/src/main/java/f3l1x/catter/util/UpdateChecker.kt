@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import f3l1x.catter.BuildConfig
+import f3l1x.catter.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -97,11 +98,11 @@ object UpdateChecker {
             _checkResult.value = runCatching { check(appContext, manual = true) }
                 .fold(
                     onSuccess = { available ->
-                        if (available) null else "You're on the latest version"
+                        if (available) null else appContext.getString(R.string.settings_check_latest)
                     },
                     onFailure = {
                         Logger.d("manual update check failed: ${it.message}")
-                        "Could not check for updates"
+                        appContext.getString(R.string.settings_check_failed)
                     },
                 )
             _checking.value = false
@@ -121,7 +122,7 @@ object UpdateChecker {
         val appContext = context.applicationContext
         if (!canInstall(appContext)) {
             openInstallSettings(appContext)
-            _state.value = UpdateState.Failed("Allow installs from Catter, then tap download again")
+            _state.value = UpdateState.Failed(appContext.getString(R.string.update_allow_install))
             return
         }
 
@@ -134,7 +135,9 @@ object UpdateChecker {
                 }
                 .onFailure {
                     Logger.e("update download failed", it)
-                    _state.value = UpdateState.Failed(it.message ?: "Download failed")
+                    _state.value = UpdateState.Failed(
+                        it.message ?: appContext.getString(R.string.update_download_failed),
+                    )
                 }
         }
     }
@@ -254,7 +257,7 @@ object UpdateChecker {
         runCatching { context.startActivity(intent) }
             .onFailure {
                 Logger.e("update install intent failed", it)
-                _state.value = UpdateState.Failed("No installer available")
+                _state.value = UpdateState.Failed(context.getString(R.string.update_no_installer))
             }
     }
 

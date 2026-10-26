@@ -268,6 +268,7 @@ object Pinterest {
             if (line.isNotEmpty()) return line.take(140)
         }
 
+        // Fallback titles also become file names, so they stay in English.
         return if (author.isNotBlank()) "$author on Pinterest" else "Pinterest pin"
     }
 

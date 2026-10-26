@@ -19,8 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.R
 import f3l1x.catter.service.MediaItem
 import f3l1x.catter.service.MediaKind
 import f3l1x.catter.service.MediaPost
@@ -71,13 +74,17 @@ fun PostDetails(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${post.items.size} items",
+                    text = pluralStringResource(
+                        R.plurals.post_item_count,
+                        post.items.size,
+                        post.items.size,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "Download all",
+                    text = stringResource(R.string.post_download_all),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -136,9 +143,10 @@ private fun PostItemRow(item: MediaItem, index: Int, onClick: () -> Unit) {
     }
 }
 
+@Composable
 private fun label(kind: MediaKind, index: Int): String = when (kind) {
-    MediaKind.Video -> "Video ${index + 1}"
-    MediaKind.Gif -> "Gif ${index + 1}"
-    MediaKind.Audio -> "Audio ${index + 1}"
-    MediaKind.Photo -> "Photo ${index + 1}"
+    MediaKind.Video -> stringResource(R.string.item_video_numbered, index + 1)
+    MediaKind.Gif -> stringResource(R.string.item_gif_numbered, index + 1)
+    MediaKind.Audio -> stringResource(R.string.item_audio_numbered, index + 1)
+    MediaKind.Photo -> stringResource(R.string.item_photo_numbered, index + 1)
 }

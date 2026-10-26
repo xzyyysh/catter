@@ -44,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import f3l1x.catter.R
 import f3l1x.catter.ui.theme.DEFAULT_THEME_ID
 import f3l1x.catter.ui.theme.ThemeFamily
 import f3l1x.catter.ui.theme.ThemeVariant
@@ -94,7 +96,7 @@ fun ThemePickerDialog(
                         ) {
                             Icon(
                                 imageVector = TablerIcons["arrow-left"],
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.action_back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp),
                             )
@@ -103,7 +105,7 @@ fun ThemePickerDialog(
                     }
 
                     Text(
-                        text = current?.label ?: "Theme",
+                        text = current?.label ?: stringResource(R.string.theme_picker_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -117,7 +119,7 @@ fun ThemePickerDialog(
                     ) {
                         Icon(
                             imageVector = TablerIcons.X,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.action_close),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
                         )
@@ -221,10 +223,18 @@ private fun FamilyCard(
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (variants.any { !it.isDark }) {
-                    Tag("Light", scheme.onSurfaceVariant, scheme.surfaceContainerHighest)
+                    Tag(
+                        text = stringResource(R.string.theme_tag_light),
+                        color = scheme.onSurfaceVariant,
+                        background = scheme.surfaceContainerHighest,
+                    )
                 }
                 if (variants.any { it.isDark }) {
-                    Tag("Dark", scheme.onSurfaceVariant, scheme.surfaceContainerHighest)
+                    Tag(
+                        text = stringResource(R.string.theme_tag_dark),
+                        color = scheme.onSurfaceVariant,
+                        background = scheme.surfaceContainerHighest,
+                    )
                 }
             }
         }
@@ -298,13 +308,15 @@ private fun PresetCard(variant: ThemeVariant, selected: Boolean, onClick: () -> 
                         .background(scheme.primary),
                 )
                 Tag(
-                    text = if (variant.isDark) "Dark" else "Light",
+                    text = stringResource(
+                        if (variant.isDark) R.string.theme_tag_dark else R.string.theme_tag_light,
+                    ),
                     color = scheme.onSurfaceVariant,
                     background = scheme.surfaceContainerHighest,
                 )
                 if (variant.id == DEFAULT_THEME_ID) {
                     Tag(
-                        text = "Default",
+                        text = stringResource(R.string.theme_tag_default),
                         color = scheme.primary,
                         background = scheme.primary.copy(alpha = 0.18f),
                     )

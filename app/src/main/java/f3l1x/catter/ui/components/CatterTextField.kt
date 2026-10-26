@@ -23,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.R
 
 @Composable
 fun CatterTextField(
@@ -33,6 +35,7 @@ fun CatterTextField(
     modifier: Modifier = Modifier,
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
+    trailingContentDescription: String? = null,
     onTrailingClick: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
@@ -92,7 +95,8 @@ fun CatterTextField(
                 ) {
                     Icon(
                         imageVector = trailingIcon,
-                        contentDescription = "Paste from clipboard",
+                        contentDescription = trailingContentDescription
+                            ?: stringResource(R.string.action_paste),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )

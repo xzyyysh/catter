@@ -44,9 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import f3l1x.catter.R
 import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.data.DownloadStore
 import f3l1x.catter.service.DownloadFiles
@@ -103,7 +106,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         scope.launch {
             withContext(Dispatchers.IO) { DownloadFiles.delete(context, record) }
             DownloadStore.remove(record.id)
-            message = "Deleted"
+            message = context.getString(R.string.message_deleted)
         }
     }
 
@@ -115,7 +118,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                 }
             }
             DownloadStore.clear()
-            message = "History cleared"
+            message = context.getString(R.string.message_history_cleared)
         }
     }
 
@@ -124,7 +127,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         runCatching { context.startActivity(intent) }
             .onFailure {
                 Logger.w("no activity for ${record.fileName}", it)
-                message = "No app can open this file"
+                message = context.getString(R.string.message_no_app_for_file)
             }
     }
 
@@ -154,14 +157,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         }
 
         if (tasks.isNotEmpty()) {
-            item(key = "queue") { SectionLabel("Queue") }
+            item(key = "queue") { SectionLabel(stringResource(R.string.downloads_section_queue)) }
             items(tasks, key = { "task-${it.id}" }) { task ->
                 QueueRow(task = task, onCancel = { DownloadManager.cancel(task.id) })
             }
         }
 
         if (failures.isNotEmpty()) {
-            item(key = "failed") { SectionLabel("Failed") }
+            item(key = "failed") { SectionLabel(stringResource(R.string.downloads_section_failed)) }
             items(failures, key = { "failure-${it.id}" }) { failure ->
                 FailedRow(
                     failure = failure,
@@ -172,7 +175,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         }
 
         if (records.isNotEmpty()) {
-            item(key = "history") { SectionLabel("History") }
+            item(key = "history") { SectionLabel(stringResource(R.string.downloads_section_history)) }
             items(records, key = { "record-${it.id}" }) { record ->
                 HistoryRow(
                     record = record,
@@ -199,18 +202,25 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
     pendingDelete?.let { record ->
         val missing = existence[record.id] == false
         CatterDialog(
-            title = if (missing) "Remove from history?" else "Delete file?",
+            title = stringResource(
+                if (missing) R.string.downloads_remove_history_title else R.string.downloads_delete_file_title,
+            ),
             onDismissRequest = { pendingDelete = null },
             actions = { dismiss ->
                 TextButton(onClick = dismiss) {
-                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
                 TextButton(onClick = {
                     deleteRecord(record)
                     dismiss()
                 }) {
                     Text(
-                        text = if (missing) "Remove" else "Delete",
+                        text = stringResource(
+                            if (missing) R.string.action_remove else R.string.action_delete,
+                        ),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -228,9 +238,9 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(6.dp))
             Text(
                 text = if (missing) {
-                    "The file is already gone from your device. This removes the entry from history."
+                    stringResource(R.string.downloads_missing_file_message)
                 } else {
-                    "${formatBytes(record.size)} will be permanently deleted from your device."
+                    stringResource(R.string.downloads_delete_file_message, formatBytes(record.size))
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -244,18 +254,21 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         val totalSize = present.sumOf { it.size }
 
         CatterDialog(
-            title = "Delete all downloads?",
+            title = stringResource(R.string.downloads_delete_all_title),
             onDismissRequest = { confirmClearAll = false },
             actions = { dismiss ->
                 TextButton(onClick = dismiss) {
-                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
                 TextButton(onClick = {
                     clearAll()
                     dismiss()
                 }) {
                     Text(
-                        text = "Delete all",
+                        text = stringResource(R.string.action_delete),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -266,13 +279,26 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             Text(
                 text = buildString {
                     if (present.isNotEmpty()) {
-                        append("${present.size} files (${formatBytes(totalSize)}) will be permanently deleted.")
+                        append(
+                            context.resources.getQuantityString(
+                                R.plurals.downloads_delete_all_message,
+                                present.size,
+                                present.size,
+                                formatBytes(totalSize),
+                            ),
+                        )
                     } else {
-                        append("No files are left on your device.")
+                        append(context.getString(R.string.downloads_delete_all_none))
                     }
                     if (missingCount > 0) {
                         append(" ")
-                        append("$missingCount entries already marked as deleted will be removed from history.")
+                        append(
+                            context.resources.getQuantityString(
+                                R.plurals.downloads_delete_all_missing,
+                                missingCount,
+                                missingCount,
+                            ),
+                        )
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -283,7 +309,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
 
     failedDetails?.let { failure ->
         CatterDialog(
-            title = "Download failed",
+            title = stringResource(R.string.downloads_failed_title),
             onDismissRequest = { failedDetails = null },
         ) {
             Spacer(Modifier.height(10.dp))
@@ -326,7 +352,9 @@ private fun ErrorBlock(text: String, onCopy: () -> Unit) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (copied) "copied" else "error",
+                    text = stringResource(
+                        if (copied) R.string.downloads_copied_label else R.string.downloads_error_label,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (copied) {
                         MaterialTheme.colorScheme.primary
@@ -346,7 +374,7 @@ private fun ErrorBlock(text: String, onCopy: () -> Unit) {
                 ) {
                     Icon(
                         imageVector = TablerIcons.Clipboard,
-                        contentDescription = "Copy error",
+                        contentDescription = stringResource(R.string.downloads_copy_error),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp),
                     )
@@ -377,13 +405,18 @@ private fun DownloadsHeader(count: Int, totalSize: Long, onClearAll: () -> Unit)
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Downloads",
+                text = stringResource(R.string.downloads_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
             if (count > 0) {
                 Text(
-                    text = "$count files · ${formatBytes(totalSize)}",
+                    text = pluralStringResource(
+                        R.plurals.downloads_summary,
+                        count,
+                        count,
+                        formatBytes(totalSize),
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -399,7 +432,7 @@ private fun DownloadsHeader(count: Int, totalSize: Long, onClearAll: () -> Unit)
             ) {
                 Icon(
                     imageVector = TablerIcons["trash"],
-                    contentDescription = "Delete all downloads",
+                    contentDescription = stringResource(R.string.downloads_delete_all),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(20.dp),
                 )
@@ -427,6 +460,8 @@ private fun HistoryRow(
     onLocate: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
+
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -452,7 +487,7 @@ private fun HistoryRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${record.qualityLabel} ${record.format} · ${formatBytes(record.size)} · ${formatDate(record.createdAt)}",
+                    text = "${record.qualityLabel} ${record.format} · ${formatBytes(record.size)} · ${formatDate(context, record.createdAt)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -460,7 +495,7 @@ private fun HistoryRow(
                 )
                 if (missing) {
                     Text(
-                        text = "File is deleted",
+                        text = stringResource(R.string.downloads_file_deleted),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -476,7 +511,7 @@ private fun HistoryRow(
                 ) {
                     Icon(
                         imageVector = TablerIcons["dots-vertical"],
-                        contentDescription = "More options",
+                        contentDescription = stringResource(R.string.downloads_more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
@@ -489,7 +524,10 @@ private fun HistoryRow(
                     if (!missing) {
                         DropdownMenuItem(
                             text = {
-                                Text("Locate file", style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    text = stringResource(R.string.downloads_locate_file),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                             },
                             leadingIcon = {
                                 Icon(
@@ -504,7 +542,13 @@ private fun HistoryRow(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = if (missing) "Remove from history" else "Delete",
+                                text = stringResource(
+                                    if (missing) {
+                                        R.string.downloads_remove_from_history
+                                    } else {
+                                        R.string.action_delete
+                                    },
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -529,9 +573,16 @@ private fun HistoryRow(
 private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
     val progress = task.progress
     val status = when {
-        task.status == DownloadStatus.Queued -> "Queued · ${task.qualityLabel}"
-        progress == null -> "Preparing ${task.qualityLabel}"
-        progress.isDeterminate -> "${formatBytes(progress.bytes)} / ${formatBytes(progress.total)}"
+        task.status == DownloadStatus.Queued ->
+            stringResource(R.string.downloads_status_queued, task.qualityLabel)
+
+        progress == null -> stringResource(R.string.downloads_status_preparing, task.qualityLabel)
+        progress.isDeterminate -> stringResource(
+            R.string.downloads_progress,
+            formatBytes(progress.bytes),
+            formatBytes(progress.total),
+        )
+
         else -> formatBytes(progress.bytes)
     }
     val speed = progress?.speed ?: 0L
@@ -600,7 +651,7 @@ private fun QueueRow(task: DownloadManager.Task, onCancel: () -> Unit) {
             ) {
                 Icon(
                     imageVector = TablerIcons.X,
-                    contentDescription = "Cancel download",
+                    contentDescription = stringResource(R.string.downloads_cancel_download),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
@@ -640,7 +691,10 @@ private fun FailedRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = listOf(failure.qualityLabel, "Failed")
+                    text = listOf(
+                        failure.qualityLabel,
+                        stringResource(R.string.downloads_failed_label),
+                    )
                         .filter { it.isNotBlank() }
                         .joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
@@ -665,7 +719,7 @@ private fun FailedRow(
                 ) {
                     Icon(
                         imageVector = TablerIcons.InfoCircle,
-                        contentDescription = "Show full error",
+                        contentDescription = stringResource(R.string.downloads_show_full_error),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
@@ -680,7 +734,7 @@ private fun FailedRow(
             ) {
                 Icon(
                     imageVector = TablerIcons.X,
-                    contentDescription = "Dismiss",
+                    contentDescription = stringResource(R.string.downloads_dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
@@ -692,7 +746,7 @@ private fun FailedRow(
 @Composable
 private fun EmptyState() {
     Text(
-        text = "No downloads yet",
+        text = stringResource(R.string.downloads_empty),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
