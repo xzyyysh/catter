@@ -140,7 +140,7 @@ object UpdateChecker {
 
         scope.launch {
             _state.value = UpdateState.Downloading(0L, info.size, 0L)
-            runCatching { fetchApk(appContext, info) }
+            runCatching { withContext(Dispatchers.IO) { fetchApk(appContext, info) } }
                 .onSuccess { file ->
                     _state.value = UpdateState.Idle
                     install(appContext, file)
@@ -260,17 +260,17 @@ object UpdateChecker {
     }
 
     private fun install(context: Context, file: File) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-        runCatching { context.startActivity(intent) }
-            .onFailure {
-                Logger.e("update install intent failed", it)
-                _state.value = UpdateState.Failed(context.getString(R.string.update_no_installer))
+        runCatching {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            context.startActivity(intent)
+        }.onFailure {
+            Logger.e("update install intent failed", it)
+            _state.value = UpdateState.Failed(context.getString(R.string.update_no_installer))
+        }
     }
 
     private fun canInstall(context: Context): Boolean =
