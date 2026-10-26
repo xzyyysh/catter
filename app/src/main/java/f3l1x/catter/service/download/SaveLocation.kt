@@ -1,7 +1,8 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import android.os.Build
 import android.os.Environment
+import f3l1x.catter.service.model.MediaKind
 import java.io.File
 
 sealed interface Destination {

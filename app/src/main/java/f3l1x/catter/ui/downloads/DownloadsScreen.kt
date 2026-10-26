@@ -52,9 +52,9 @@ import androidx.compose.ui.unit.dp
 import f3l1x.catter.R
 import f3l1x.catter.data.DownloadRecord
 import f3l1x.catter.data.DownloadStore
-import f3l1x.catter.service.DownloadFiles
-import f3l1x.catter.service.DownloadManager
-import f3l1x.catter.service.DownloadStatus
+import f3l1x.catter.service.download.DownloadFiles
+import f3l1x.catter.service.download.DownloadManager
+import f3l1x.catter.service.download.DownloadStatus
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.components.RemoteThumbnail

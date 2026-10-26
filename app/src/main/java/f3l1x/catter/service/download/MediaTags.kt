@@ -1,4 +1,4 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import f3l1x.catter.util.Logger
 import org.jaudiotagger.audio.AudioFileIO

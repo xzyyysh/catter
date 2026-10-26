@@ -70,14 +70,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import f3l1x.catter.R
 import f3l1x.catter.data.LocalAppPreferences
-import f3l1x.catter.service.DownloadManager
+import f3l1x.catter.service.download.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
 import f3l1x.catter.ui.components.UpdateDialog
 import f3l1x.catter.ui.settings.SettingsScreen
+import f3l1x.catter.update.UpdateChecker
 import f3l1x.catter.util.Connectivity
-import f3l1x.catter.util.UpdateChecker
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt

@@ -1,4 +1,4 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import android.content.ContentResolver
 import android.content.ContentValues
@@ -10,6 +10,7 @@ import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
+import f3l1x.catter.service.model.MediaKind
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

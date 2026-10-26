@@ -1,4 +1,4 @@
-package f3l1x.catter.util
+package f3l1x.catter.update
 
 import android.content.Context
 import android.content.Intent
@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import f3l1x.catter.BuildConfig
 import f3l1x.catter.R
+import f3l1x.catter.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

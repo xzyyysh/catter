@@ -1,6 +1,9 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.source
 
 import android.net.Uri
+import f3l1x.catter.service.model.MediaItem
+import f3l1x.catter.service.model.MediaKind
+import f3l1x.catter.service.model.MediaPost
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

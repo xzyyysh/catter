@@ -1,4 +1,4 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import java.util.concurrent.atomic.AtomicBoolean
 

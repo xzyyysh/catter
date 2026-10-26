@@ -18,8 +18,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import f3l1x.catter.BuildConfig
 import f3l1x.catter.R
-import f3l1x.catter.util.UpdateInfo
-import f3l1x.catter.util.UpdateState
+import f3l1x.catter.update.UpdateInfo
+import f3l1x.catter.update.UpdateState
 import f3l1x.catter.util.formatBytes
 import f3l1x.catter.util.formatSpeed
 import io.tabler.icons.TablerIcons

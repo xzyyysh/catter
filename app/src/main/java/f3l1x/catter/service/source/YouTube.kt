@@ -1,7 +1,8 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.source
 
 import android.net.Uri
 import android.os.SystemClock
+import f3l1x.catter.service.download.DownloadTicket
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -1,7 +1,11 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.source
 
 import android.content.Context
 import f3l1x.catter.R
+import f3l1x.catter.service.download.DownloadManager
+import f3l1x.catter.service.download.Requests
+import f3l1x.catter.service.download.SaveLocation
+import f3l1x.catter.service.model.MediaPost
 import f3l1x.catter.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

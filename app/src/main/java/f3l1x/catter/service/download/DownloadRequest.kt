@@ -1,4 +1,6 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
+
+import f3l1x.catter.service.model.MediaKind
 
 data class DownloadTicket(
     val url: String,

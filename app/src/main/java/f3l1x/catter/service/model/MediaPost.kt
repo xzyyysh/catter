@@ -1,4 +1,4 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.model
 
 enum class MediaKind { Video, Audio, Photo, Gif }
 

@@ -15,11 +15,11 @@ import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.DownloadStore
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
-import f3l1x.catter.service.Links
+import f3l1x.catter.service.source.Links
 import f3l1x.catter.ui.CatterApp
 import f3l1x.catter.ui.theme.CatterTheme
 import f3l1x.catter.ui.theme.Themes
-import f3l1x.catter.util.UpdateChecker
+import f3l1x.catter.update.UpdateChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {

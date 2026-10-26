@@ -58,15 +58,15 @@ import f3l1x.catter.R
 import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
-import f3l1x.catter.service.SaveLocation
+import f3l1x.catter.service.download.SaveLocation
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.MarkdownText
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.theme.DEFAULT_THEME_ID
 import f3l1x.catter.ui.theme.ThemeVariant
 import f3l1x.catter.ui.theme.Themes
+import f3l1x.catter.update.UpdateChecker
 import f3l1x.catter.util.Logger
-import f3l1x.catter.util.UpdateChecker
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

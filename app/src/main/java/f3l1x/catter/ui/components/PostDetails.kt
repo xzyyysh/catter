@@ -24,9 +24,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import f3l1x.catter.R
-import f3l1x.catter.service.MediaItem
-import f3l1x.catter.service.MediaKind
-import f3l1x.catter.service.MediaPost
+import f3l1x.catter.service.model.MediaItem
+import f3l1x.catter.service.model.MediaKind
+import f3l1x.catter.service.model.MediaPost
 import io.tabler.icons.TablerIcons
 
 @Composable

@@ -33,8 +33,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import f3l1x.catter.service.Quality
-import f3l1x.catter.service.VideoDetails
+import f3l1x.catter.service.source.Quality
+import f3l1x.catter.service.source.VideoDetails
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

@@ -1,4 +1,4 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import android.content.Context
 import f3l1x.catter.data.DownloadRecord

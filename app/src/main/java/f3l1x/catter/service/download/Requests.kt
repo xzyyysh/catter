@@ -1,7 +1,13 @@
-package f3l1x.catter.service
+package f3l1x.catter.service.download
 
 import android.content.Context
 import f3l1x.catter.R
+import f3l1x.catter.service.model.MediaItem
+import f3l1x.catter.service.model.MediaKind
+import f3l1x.catter.service.model.MediaPost
+import f3l1x.catter.service.source.Quality
+import f3l1x.catter.service.source.VideoDetails
+import f3l1x.catter.service.source.YouTube
 
 object Requests {
 
