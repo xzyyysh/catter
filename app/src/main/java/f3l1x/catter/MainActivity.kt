@@ -1,5 +1,6 @@
 package f3l1x.catter
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,22 +9,32 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.DownloadStore
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
+import f3l1x.catter.service.Links
 import f3l1x.catter.ui.CatterApp
 import f3l1x.catter.ui.theme.CatterTheme
 import f3l1x.catter.ui.theme.Themes
 import f3l1x.catter.util.UpdateChecker
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
+
+    private val incomingLink = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         DownloadStore.init(applicationContext)
         UpdateChecker.cleanup(applicationContext)
         UpdateChecker.start(applicationContext)
+        if (savedInstanceState == null) {
+            incomingLink.value = sharedText(intent)?.let(Links::fromText)
+        }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
@@ -38,6 +49,7 @@ class MainActivity : ComponentActivity() {
                 preferences.themeMode == ThemeMode.Dark -> true
                 else -> false
             }
+            val pending by incomingLink.collectAsState()
 
             CompositionLocalProvider(LocalAppPreferences provides preferences) {
                 CatterTheme(
@@ -46,9 +58,23 @@ class MainActivity : ComponentActivity() {
                     amoled = preferences.amoled,
                     variant = variant,
                 ) {
-                    CatterApp()
+                    CatterApp(
+                        incomingLink = pending,
+                        onIncomingLinkConsumed = { incomingLink.value = null },
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        sharedText(intent)?.let(Links::fromText)?.let { incomingLink.value = it }
+    }
+
+    private fun sharedText(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_SEND) return null
+        return intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
     }
 }

@@ -109,7 +109,11 @@ private fun cardKey(state: ResolveState): String = when (state) {
 }
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(
+    incomingLink: String?,
+    onIncomingLinkConsumed: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val preferences = LocalAppPreferences.current
@@ -186,6 +190,14 @@ fun HomeScreen(modifier: Modifier = Modifier) {
 
             else -> Unit
         }
+    }
+
+    LaunchedEffect(incomingLink) {
+        val link = incomingLink ?: return@LaunchedEffect
+        focusManager.clearFocus()
+        url = link
+        Resolver.resolve(context, link, preferences.saveTreeUri)
+        onIncomingLinkConsumed()
     }
 
     fun submit() {

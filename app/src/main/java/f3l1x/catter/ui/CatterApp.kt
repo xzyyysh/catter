@@ -86,7 +86,10 @@ private enum class CatterDestination(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun CatterApp() {
+fun CatterApp(
+    incomingLink: String?,
+    onIncomingLinkConsumed: () -> Unit,
+) {
     RequestStartupPermissions()
     RequireInternet()
     UpdatePrompt()
@@ -96,6 +99,9 @@ fun CatterApp() {
     val screens = rememberSaveableStateHolder()
 
     LaunchedEffect(Unit) { appeared = true }
+    LaunchedEffect(incomingLink) {
+        if (incomingLink != null) current = CatterDestination.Home
+    }
 
     Box(
         modifier = Modifier
@@ -125,7 +131,10 @@ fun CatterApp() {
             ) { destination ->
                 screens.SaveableStateProvider(destination.name) {
                     when (destination) {
-                        CatterDestination.Home -> HomeScreen()
+                        CatterDestination.Home -> HomeScreen(
+                            incomingLink = incomingLink,
+                            onIncomingLinkConsumed = onIncomingLinkConsumed,
+                        )
                         CatterDestination.Downloads -> DownloadsScreen()
                         CatterDestination.Settings -> SettingsScreen()
                     }
