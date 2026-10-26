@@ -52,6 +52,12 @@ object UpdateChecker {
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
 
+    private val _checking = MutableStateFlow(false)
+    val checking: StateFlow<Boolean> = _checking.asStateFlow()
+
+    private val _checkResult = MutableStateFlow<String?>(null)
+    val checkResult: StateFlow<String?> = _checkResult.asStateFlow()
+
     private var started = false
     private var dismissed: String? = null
 
@@ -66,6 +72,27 @@ object UpdateChecker {
                     .onFailure { Logger.d("update check skipped: ${it.message}") }
                 delay(INTERVAL_MS)
             }
+        }
+    }
+
+    fun checkNow(context: Context) {
+        if (_checking.value) return
+        val appContext = context.applicationContext
+
+        scope.launch {
+            _checking.value = true
+            _checkResult.value = null
+            _checkResult.value = runCatching { check(appContext, manual = true) }
+                .fold(
+                    onSuccess = { available ->
+                        if (available) null else "You're on the latest version"
+                    },
+                    onFailure = {
+                        Logger.d("manual update check failed: ${it.message}")
+                        "Could not check for updates"
+                    },
+                )
+            _checking.value = false
         }
     }
 
@@ -109,23 +136,23 @@ object UpdateChecker {
         }
     }
 
-    private suspend fun check(context: Context) = withContext(Dispatchers.IO) {
-        val body = request(RELEASE) ?: return@withContext
+    private suspend fun check(context: Context, manual: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        val body = request(RELEASE) ?: return@withContext false
 
         val json = JSONObject(body)
         val version = json.optString("tag_name").removePrefix("v").removePrefix("V")
-        if (version.isBlank()) return@withContext
-        if (!isNewer(version, BuildConfig.VERSION_NAME)) return@withContext
-        if (version == dismissed) return@withContext
+        if (version.isBlank()) return@withContext false
+        if (!isNewer(version, BuildConfig.VERSION_NAME)) return@withContext false
+        if (!manual && version == dismissed) return@withContext false
 
         val assets = json.optJSONArray("assets")
         val apk = (0 until (assets?.length() ?: 0))
             .mapNotNull { assets?.optJSONObject(it) }
             .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
-            ?: return@withContext
+            ?: return@withContext false
 
         val url = apk.optString("browser_download_url")
-        if (url.isBlank()) return@withContext
+        if (url.isBlank()) return@withContext false
 
         val notes = json.optString("body").ifBlank { request(README).orEmpty() }
         Logger.d("update available: $version")
@@ -136,6 +163,16 @@ object UpdateChecker {
             apkUrl = url,
             size = apk.optLong("size"),
         )
+        true
+    }
+
+    suspend fun changelog(version: String): String? = withContext(Dispatchers.IO) {
+        val tag = version.trim()
+        if (tag.isBlank()) return@withContext null
+
+        val body = request("https://api.github.com/repos/$REPO/releases/tags/$tag")
+            ?: return@withContext null
+        JSONObject(body).optString("body").ifBlank { request(README).orEmpty() }
     }
 
     private fun fetchApk(context: Context, info: UpdateInfo): File {

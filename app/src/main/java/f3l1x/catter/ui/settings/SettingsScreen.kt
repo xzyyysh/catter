@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,6 +35,8 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,9 +57,14 @@ import f3l1x.catter.data.AppPreferences
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.data.ThemeMode
 import f3l1x.catter.service.SaveLocation
+import f3l1x.catter.ui.components.CatterDialog
+import f3l1x.catter.ui.components.MarkdownText
+import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.theme.DEFAULT_THEME_ID
 import f3l1x.catter.ui.theme.ThemeVariant
 import f3l1x.catter.ui.theme.Themes
+import f3l1x.catter.util.Logger
+import f3l1x.catter.util.UpdateChecker
 import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -437,6 +445,10 @@ private fun StorageCard(preferences: AppPreferences) {
 @Composable
 private fun AboutCard() {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val checking by UpdateChecker.checking.collectAsState()
+    val checkResult by UpdateChecker.checkResult.collectAsState()
+    var showVersion by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -462,18 +474,30 @@ private fun AboutCard() {
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "v${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
 
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(12.dp))
 
+            AboutRow(
+                icon = TablerIcons["tag"],
+                label = "Version",
+                value = "v${BuildConfig.VERSION_NAME}",
+                onClick = { showVersion = true },
+            )
+            Spacer(Modifier.height(10.dp))
+            AboutRow(
+                icon = TablerIcons["refresh"],
+                label = "Check for updates",
+                value = when {
+                    checking -> "Checking…"
+                    checkResult != null -> checkResult.orEmpty()
+                    else -> "Tap to check"
+                },
+                onClick = { UpdateChecker.checkNow(context) },
+            )
+            Spacer(Modifier.height(10.dp))
             AboutRow(
                 icon = TablerIcons.User,
                 label = "Developer",
@@ -485,6 +509,52 @@ private fun AboutCard() {
                 label = "GitHub",
                 value = "xzyyysh/catter",
                 onClick = { uriHandler.openUri(GITHUB_URL) },
+            )
+        }
+    }
+
+    if (showVersion) {
+        VersionDialog(
+            version = BuildConfig.VERSION_NAME,
+            onDismissRequest = { showVersion = false },
+        )
+    }
+}
+
+@Composable
+private fun VersionDialog(version: String, onDismissRequest: () -> Unit) {
+    var notes by remember(version) { mutableStateOf<String?>(null) }
+    var loading by remember(version) { mutableStateOf(true) }
+
+    LaunchedEffect(version) {
+        notes = runCatching { UpdateChecker.changelog(version) }
+            .onFailure { Logger.w("changelog fetch failed: $version", it) }
+            .getOrNull()
+        loading = false
+    }
+
+    CatterDialog(title = "Version $version", onDismissRequest = onDismissRequest) {
+        Spacer(Modifier.height(12.dp))
+        when {
+            loading -> ProgressLine(
+                fraction = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp),
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            )
+
+            notes.isNullOrBlank() -> Text(
+                text = "No changelog available for this version.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            else -> MarkdownText(
+                markdown = notes.orEmpty(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp),
             )
         }
     }
