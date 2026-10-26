@@ -59,15 +59,22 @@ object Downloader {
         onProgress: ((DownloadProgress) -> Unit)? = null,
     ): SavedFile = withContext(Dispatchers.IO) {
         val fileName = name
-        val temp = File(context.cacheDir, "catter-${System.nanoTime()}.${fileName.substringAfterLast('.')}")
+        val stamp = System.nanoTime()
+        val temp = File(context.cacheDir, "catter-$stamp.${fileName.substringAfterLast('.')}")
+        val audioTemp = File(context.cacheDir, "catter-$stamp-audio.mp4")
+        val muxTemp = File(context.cacheDir, "catter-$stamp-mux.mp4")
         Logger.d("download start: $fileName")
 
         try {
             signal.throwIfCancelled()
             download(ticket.url, temp, ticket.headers, signal, onProgress)
             signal.throwIfCancelled()
-            if (kind == MediaKind.Audio) MediaTags.write(temp, title, artist)
-            publish(context, temp, fileName, mimeType, destination)
+
+            val source = if (ticket.audioUrl != null) muxAudio(ticket, temp, audioTemp, muxTemp, signal) else temp
+            signal.throwIfCancelled()
+
+            if (kind == MediaKind.Audio) MediaTags.write(source, title, artist)
+            publish(context, source, fileName, mimeType, destination)
         } catch (cancelled: DownloadCancelled) {
             throw cancelled
         } catch (throwable: Throwable) {
@@ -75,7 +82,57 @@ object Downloader {
             throw throwable
         } finally {
             temp.delete()
+            audioTemp.delete()
+            muxTemp.delete()
         }
+    }
+
+    private fun muxAudio(
+        ticket: DownloadTicket,
+        video: File,
+        audio: File,
+        output: File,
+        signal: DownloadSignal,
+    ): File {
+        val url = ticket.audioUrl ?: return video
+        if (!downloadAudio(url, audio, ticket.headers, signal)) return video
+        signal.throwIfCancelled()
+
+        return try {
+            Mp4Muxer.mux(video, audio, output, signal)
+            output
+        } catch (cancelled: DownloadCancelled) {
+            throw cancelled
+        } catch (error: Throwable) {
+            Logger.w("audio mux failed, publishing video only", error)
+            video
+        }
+    }
+
+    private fun downloadAudio(
+        url: String,
+        target: File,
+        headers: Map<String, String>,
+        signal: DownloadSignal,
+    ): Boolean {
+        val candidates = listOf(
+            url,
+            url.replace("AUDIO_128", "AUDIO_64"),
+        ).distinct()
+
+        for (candidate in candidates) {
+            try {
+                download(candidate, target, headers, signal, null)
+                return true
+            } catch (cancelled: DownloadCancelled) {
+                throw cancelled
+            } catch (error: Throwable) {
+                Logger.w("audio download failed: $candidate", error)
+            }
+        }
+
+        Logger.w("audio unavailable, publishing video only: $url")
+        return false
     }
 
     fun fileName(title: String, artist: String, label: String, extension: String): String {

@@ -6,6 +6,7 @@ data class MediaItem(
     val kind: MediaKind,
     val url: String,
     val thumbnailUrl: String,
+    val audioUrl: String? = null,
 )
 
 data class MediaPost(

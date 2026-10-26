@@ -4,6 +4,7 @@ data class DownloadTicket(
     val url: String,
     val fileName: String,
     val headers: Map<String, String> = emptyMap(),
+    val audioUrl: String? = null,
 )
 
 data class DownloadRequest(

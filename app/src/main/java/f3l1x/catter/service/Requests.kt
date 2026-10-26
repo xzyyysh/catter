@@ -54,7 +54,7 @@ object Requests {
             ),
             mimeType = mimeType,
             kind = item.kind,
-            resolve = { DownloadTicket(item.url, "") },
+            resolve = { DownloadTicket(item.url, "", audioUrl = item.audioUrl) },
         )
     }
 

@@ -5,6 +5,7 @@ enum class Source(val label: String) {
     Instagram("Instagram"),
     TikTok("TikTok"),
     Pinterest("Pinterest"),
+    Reddit("Reddit"),
 }
 
 data class MediaLink(val source: Source, val id: String)
@@ -18,6 +19,7 @@ object Links {
         Instagram.match(link)?.let { return MediaLink(Source.Instagram, it) }
         TikTok.match(link)?.let { return MediaLink(Source.TikTok, it) }
         Pinterest.match(link)?.let { return MediaLink(Source.Pinterest, it) }
+        Reddit.match(link)?.let { return MediaLink(Source.Reddit, it) }
         return null
     }
 

@@ -2,6 +2,7 @@ package f3l1x.catter.service
 
 import android.net.Uri
 import f3l1x.catter.util.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -56,7 +57,15 @@ object Instagram {
         Logger.d("instagram request: $url")
 
         repeat(ATTEMPTS) { attempt ->
-            val response = fetch(url)
+            val response = try {
+                fetch(url)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                Logger.w("instagram request failed: $url", error)
+                throw error
+            }
+
             val resolved = code ?: shortcode(response.url)
             val node = resolved?.let { findPost(response.body, it) }
             if (node != null) return@withContext build(node, resolved)
