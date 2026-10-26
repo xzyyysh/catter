@@ -11,12 +11,13 @@ import f3l1x.catter.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -61,18 +62,29 @@ object UpdateChecker {
     private var started = false
     private var dismissed: String? = null
 
-    fun start(context: Context) {
+    private val autoCheck = MutableStateFlow(true)
+
+    fun start(context: Context, enabled: Boolean) {
+        autoCheck.value = enabled
         if (started) return
         started = true
         val appContext = context.applicationContext
 
         scope.launch {
             while (true) {
-                runCatching { check(appContext) }
-                    .onFailure { Logger.d("update check skipped: ${it.message}") }
-                delay(INTERVAL_MS)
+                if (autoCheck.value) {
+                    runCatching { check(appContext) }
+                        .onFailure { Logger.d("update check skipped: ${it.message}") }
+                    withTimeoutOrNull(INTERVAL_MS) { autoCheck.first { !it } }
+                } else {
+                    autoCheck.first { it }
+                }
             }
         }
+    }
+
+    fun setAutoCheck(enabled: Boolean) {
+        autoCheck.value = enabled
     }
 
     fun checkNow(context: Context) {

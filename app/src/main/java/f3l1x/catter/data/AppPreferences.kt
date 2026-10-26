@@ -45,6 +45,9 @@ class AppPreferences(context: Context) {
     var debugLogs: Boolean by mutableStateOf(prefs.getBoolean(KEY_DEBUG_LOGS, false))
         private set
 
+    var autoUpdateCheck: Boolean by mutableStateOf(prefs.getBoolean(KEY_AUTO_UPDATE, true))
+        private set
+
     init {
         Logger.enabled = debugLogs
     }
@@ -75,6 +78,11 @@ class AppPreferences(context: Context) {
         prefs.edit().putString(KEY_THEME_PRESET, id).apply()
     }
 
+    fun updateAutoUpdateCheck(enabled: Boolean) {
+        autoUpdateCheck = enabled
+        prefs.edit().putBoolean(KEY_AUTO_UPDATE, enabled).apply()
+    }
+
     fun markPermissionsRequested() {
         permissionsRequested = true
         prefs.edit().putBoolean(KEY_PERMISSIONS, true).apply()
@@ -99,6 +107,7 @@ class AppPreferences(context: Context) {
         const val KEY_PERMISSIONS = "permissions_requested"
         const val KEY_THEME_PRESET = "theme_preset"
         const val KEY_DEBUG_LOGS = "debug_logs"
+        const val KEY_AUTO_UPDATE = "auto_update_check"
     }
 }
 

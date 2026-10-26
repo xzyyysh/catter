@@ -108,7 +108,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
         StorageCard(preferences)
         Spacer(Modifier.height(12.dp))
-        AboutCard()
+        AboutCard(preferences)
         Spacer(Modifier.height(12.dp))
         DebugCard(preferences)
         Spacer(Modifier.height(88.dp))
@@ -443,7 +443,7 @@ private fun StorageCard(preferences: AppPreferences) {
 }
 
 @Composable
-private fun AboutCard() {
+private fun AboutCard(preferences: AppPreferences) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val checking by UpdateChecker.checking.collectAsState()
@@ -496,6 +496,17 @@ private fun AboutCard() {
                     else -> "Tap to check"
                 },
                 onClick = { UpdateChecker.checkNow(context) },
+            )
+            Spacer(Modifier.height(10.dp))
+            AboutSwitchRow(
+                icon = TablerIcons["clock"],
+                label = "Check automatically",
+                description = "Look for new releases every hour",
+                checked = preferences.autoUpdateCheck,
+                onCheckedChange = { enabled ->
+                    preferences.updateAutoUpdateCheck(enabled)
+                    UpdateChecker.setAutoCheck(enabled)
+                },
             )
             Spacer(Modifier.height(10.dp))
             AboutRow(
@@ -600,6 +611,50 @@ private fun DebugCard(preferences: AppPreferences) {
                 onCheckedChange = preferences::updateDebugLogs,
             )
         }
+    }
+}
+
+@Composable
+private fun AboutSwitchRow(
+    icon: ImageVector,
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+            ),
+        )
     }
 }
 
