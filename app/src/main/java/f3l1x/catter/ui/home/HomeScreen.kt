@@ -387,6 +387,12 @@ private fun SupportedPlatformsDialog(onDismissRequest: () -> Unit) {
             name = "Reddit",
             formats = "MP4 · GIF · JPG",
         )
+        Spacer(Modifier.height(10.dp))
+        PlatformRow(
+            icon = TablerIcons["brand-x"],
+            name = "X",
+            formats = "MP4",
+        )
         Text(
             text = "More sources soon!",
             style = MaterialTheme.typography.labelSmall,

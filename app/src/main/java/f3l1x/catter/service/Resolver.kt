@@ -52,6 +52,7 @@ object Resolver {
                 Source.TikTok -> loadPost(appContext, current, target.id, treeUri) { TikTok.post(it) }
                 Source.Pinterest -> loadPost(appContext, current, target.id, treeUri) { Pinterest.post(it) }
                 Source.Reddit -> loadPost(appContext, current, target.id, treeUri) { Reddit.post(it) }
+                Source.X -> loadPost(appContext, current, target.id, treeUri) { X.post(it) }
             }
         }
     }
