@@ -125,55 +125,78 @@ fun HomeScreen(
     var showPlatforms by rememberSaveable { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var messageIsError by remember { mutableStateOf(false) }
-    var requestedQuality by remember { mutableStateOf<Quality?>(null) }
+    var pendingDownload by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val loading = state is ResolveState.Loading
     val hasCard = state is ResolveState.Video || state is ResolveState.Post
     val canClear = hasCard || loading || url.isNotEmpty()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val action = pendingDownload
+        pendingDownload = null
+        if (granted && action != null) {
+            action()
+        } else if (!granted) {
+            message = context.getString(R.string.message_storage_permission_required)
+            messageIsError = true
+        }
+    }
+
+    fun withStoragePermission(action: () -> Unit) {
+        val missing = Downloader.requiresLegacyPermission &&
+            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED
+        if (missing) {
+            pendingDownload = action
+            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            action()
+        }
+    }
 
     fun queue(request: DownloadRequest) {
         DownloadManager.start(context, request, SaveLocation.destination(preferences.saveTreeUri, request.kind))
     }
 
     fun startDownload(details: VideoDetails, quality: Quality) {
-        Logger.d("download queued: ${quality.name}")
-        queue(Requests.youtube(details, quality))
-        Resolver.markQueued(context.getString(R.string.message_added_to_queue))
+        withStoragePermission {
+            Logger.d("download queued: ${quality.name}")
+            queue(Requests.youtube(details, quality))
+            Resolver.markQueued(context.getString(R.string.message_added_to_queue))
+        }
     }
 
     fun startItem(post: MediaPost, item: MediaItem, index: Int) {
-        Logger.d("post queued: ${post.id}")
-        queue(Requests.post(context, post, item, index))
-        Haptics.lightSuccess(context)
-        message = context.getString(R.string.message_added_to_queue)
-        messageIsError = false
+        withStoragePermission {
+            Logger.d("post queued: ${post.id}")
+            queue(Requests.post(context, post, item, index))
+            Haptics.lightSuccess(context)
+            message = context.getString(R.string.message_added_to_queue)
+            messageIsError = false
+        }
     }
 
     fun startAll(post: MediaPost) {
-        post.items.forEachIndexed { index, item -> queue(Requests.post(context, post, item, index)) }
-        Resolver.markQueued(context.getString(R.string.message_added_to_queue_count, post.items.size))
+        withStoragePermission {
+            post.items.forEachIndexed { index, item ->
+                queue(Requests.post(context, post, item, index))
+            }
+            Resolver.markQueued(
+                context.getString(R.string.message_added_to_queue_count, post.items.size),
+            )
+        }
     }
 
     fun startThumbnail(title: String, author: String, url: String) {
         if (url.isBlank()) return
-        Logger.d("thumbnail queued: $url")
-        queue(Requests.thumbnail(context, title, author, url))
-        Haptics.lightSuccess(context)
-        message = context.getString(R.string.message_added_to_queue)
-        messageIsError = false
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        val quality = requestedQuality
-        requestedQuality = null
-        val details = (state as? ResolveState.Video)?.details
-        if (granted && quality != null && details != null) {
-            startDownload(details, quality)
-        } else if (!granted) {
-            message = context.getString(R.string.message_storage_permission_required)
-            messageIsError = true
+        withStoragePermission {
+            Logger.d("thumbnail queued: $url")
+            queue(Requests.thumbnail(context, title, author, url))
+            Haptics.lightSuccess(context)
+            message = context.getString(R.string.message_added_to_queue)
+            messageIsError = false
         }
     }
 
@@ -315,17 +338,7 @@ fun HomeScreen(
                 when (current) {
                     is ResolveState.Video -> ItemDetails(
                         details = current.details,
-                        onSelect = { quality ->
-                            val needsPermission = Downloader.requiresLegacyPermission &&
-                                context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-                                PackageManager.PERMISSION_GRANTED
-                            if (needsPermission) {
-                                requestedQuality = quality
-                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                            } else {
-                                startDownload(current.details, quality)
-                            }
-                        },
+                        onSelect = { quality -> startDownload(current.details, quality) },
                         onDownloadThumbnail = {
                             startThumbnail(
                                 title = current.details.title,

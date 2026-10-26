@@ -11,6 +11,7 @@ object DownloadStore {
 
     private const val PREFS_NAME = "catter_downloads"
     private const val KEY_RECORDS = "records"
+    private const val MAX_RECORDS = 300
 
     private lateinit var prefs: SharedPreferences
 
@@ -21,10 +22,13 @@ object DownloadStore {
         if (::prefs.isInitialized) return
         prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         _records.value = DownloadRecord.listFromJson(prefs.getString(KEY_RECORDS, null))
+            .take(MAX_RECORDS)
     }
 
     fun add(record: DownloadRecord) {
-        _records.update { current -> listOf(record) + current.filterNot { it.id == record.id } }
+        _records.update { current ->
+            (listOf(record) + current.filterNot { it.id == record.id }).take(MAX_RECORDS)
+        }
         persist()
     }
 

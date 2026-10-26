@@ -67,6 +67,8 @@
     <string name="downloads_section_queue">Cola</string>
     <string name="downloads_section_failed">Fallidas</string>
     <string name="downloads_section_history">Historial</string>
+    <string name="downloads_search">Buscar descargas</string>
+    <string name="downloads_no_matches">Sin resultados</string>
     <string name="downloads_empty">Todavía no hay descargas</string>
     <string name="downloads_status_queued">En cola · %1$s</string>
     <string name="downloads_status_preparing">Preparando %1$s</string>

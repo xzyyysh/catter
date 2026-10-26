@@ -67,6 +67,8 @@
     <string name="downloads_section_queue">Queue</string>
     <string name="downloads_section_failed">Failed</string>
     <string name="downloads_section_history">History</string>
+    <string name="downloads_search">Search downloads</string>
+    <string name="downloads_no_matches">No matches</string>
     <string name="downloads_empty">No downloads yet</string>
     <string name="downloads_status_queued">Queued · %1$s</string>
     <string name="downloads_status_preparing">Preparing %1$s</string>

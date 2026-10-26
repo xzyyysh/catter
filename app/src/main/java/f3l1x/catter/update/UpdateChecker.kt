@@ -2,6 +2,7 @@ package f3l1x.catter.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -46,6 +47,8 @@ object UpdateChecker {
     private const val README = "https://raw.githubusercontent.com/$REPO/main/README.md"
     private const val INTERVAL_MS = 60 * 60 * 1000L
     private const val FOLDER = "updates"
+    private const val PREFS_NAME = "catter_updates"
+    private const val KEY_DISMISSED = "dismissed_version"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -62,11 +65,19 @@ object UpdateChecker {
     val checkResult: StateFlow<String?> = _checkResult.asStateFlow()
 
     private var started = false
-    private var dismissed: String? = null
+
+    private var prefs: SharedPreferences? = null
+
+    private var dismissed: String?
+        get() = prefs?.getString(KEY_DISMISSED, null)
+        set(value) {
+            prefs?.edit()?.putString(KEY_DISMISSED, value)?.apply()
+        }
 
     private val autoCheck = MutableStateFlow(true)
 
     fun start(context: Context, enabled: Boolean) {
+        prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         autoCheck.value = enabled
         if (started) return
         started = true

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,6 +60,7 @@ import f3l1x.catter.service.download.DownloadFiles
 import f3l1x.catter.service.download.DownloadManager
 import f3l1x.catter.service.download.DownloadStatus
 import f3l1x.catter.ui.components.CatterDialog
+import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.components.RemoteThumbnail
 import f3l1x.catter.util.Logger
@@ -87,6 +91,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
     var confirmClearAll by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var failedDetails by remember { mutableStateOf<DownloadManager.Failure?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(records) {
         while (true) {
@@ -142,6 +147,15 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             }
     }
 
+    val filtered = if (query.isBlank()) {
+        records
+    } else {
+        records.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                it.author.contains(query, ignoreCase = true)
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -155,6 +169,25 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                 totalSize = records.sumOf { it.size },
                 onClearAll = { confirmClearAll = true },
             )
+        }
+
+        if (records.isNotEmpty()) {
+            item(key = "search") {
+                CatterTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = stringResource(R.string.downloads_search),
+                    leadingIcon = TablerIcons["search"],
+                    trailingIcon = if (query.isEmpty()) null else TablerIcons.X,
+                    trailingContentDescription = if (query.isEmpty()) {
+                        null
+                    } else {
+                        stringResource(R.string.action_clear)
+                    },
+                    onTrailingClick = if (query.isEmpty()) null else ({ query = "" }),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                )
+            }
         }
 
         message?.let { text ->
@@ -186,9 +219,9 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        if (records.isNotEmpty()) {
+        if (filtered.isNotEmpty()) {
             item(key = "history") { SectionLabel(stringResource(R.string.downloads_section_history)) }
-            items(records, key = { "record-${it.id}" }) { record ->
+            items(filtered, key = { "record-${it.id}" }) { record ->
                 HistoryRow(
                     record = record,
                     missing = existence[record.id] == false,
@@ -206,6 +239,15 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                         expandedId = null
                         pendingDelete = record
                     },
+                )
+            }
+        } else if (records.isNotEmpty()) {
+            item(key = "no-matches") {
+                Text(
+                    text = stringResource(R.string.downloads_no_matches),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }
