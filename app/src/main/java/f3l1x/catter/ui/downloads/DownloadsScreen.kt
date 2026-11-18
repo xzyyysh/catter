@@ -4,6 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -290,15 +295,12 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         }
 
         if (picking) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            AnimatedVisibility(
+                visible = selection.isNotEmpty(),
+                enter = fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                    slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) { it / 2 },
+                modifier = Modifier.align(Alignment.BottomEnd),
             ) {
-                SelectionCancelButton(onCancel = { ConvertPicker.cancel() })
                 SelectionSendButton(
                     count = selection.size,
                     onSend = {
@@ -546,74 +548,39 @@ private fun SelectionRow(record: DownloadRecord, selected: Boolean, onClick: () 
 }
 
 @Composable
-private fun SelectionCancelButton(onCancel: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 8.dp,
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(onClick = onCancel)
-                .padding(12.dp),
-        ) {
-            Icon(
-                imageVector = TablerIcons.X,
-                contentDescription = stringResource(R.string.action_cancel),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-@Composable
 private fun SelectionSendButton(count: Int, onSend: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = if (count > 0) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceContainer
-        },
+        color = MaterialTheme.colorScheme.primary,
         shadowElevation = 8.dp,
         modifier = Modifier
+            .navigationBarsPadding()
+            .padding(bottom = 92.dp, end = 20.dp)
             .clip(RoundedCornerShape(50))
-            .clickable(enabled = count > 0, onClick = onSend),
+            .clickable(onClick = onSend),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = TablerIcons["send"],
                 contentDescription = null,
-                tint = if (count > 0) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.converter_send),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (count > 0) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color = MaterialTheme.colorScheme.onPrimary,
             )
-            if (count > 0) {
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                )
-            }
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+            )
         }
     }
 }
