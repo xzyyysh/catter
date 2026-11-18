@@ -81,6 +81,7 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
 
     var optionsOpen by rememberSaveable { mutableStateOf(false) }
     var pending by remember { mutableStateOf<List<FormatGroup>>(emptyList()) }
+    var celebrating by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(message) {
@@ -100,17 +101,15 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
         if (sources.isEmpty()) return@LaunchedEffect
 
         val grouped = sources.groupBy { ConvertPresets.sourceKind(it.mimeType, it.fileName) }
-        pending = grouped.entries
+        val groups = grouped.entries
             .filter { it.key != null }
             .map { FormatGroup(it.key!!, it.value) }
-        if (grouped.containsKey(null)) {
-            message = context.getString(R.string.converter_unsupported)
-        }
-    }
 
-    LaunchedEffect(pending) {
-        if (pending.isEmpty() && sources.isNotEmpty()) {
+        if (groups.isEmpty()) {
+            message = context.getString(R.string.converter_unsupported)
             ConvertPicker.clear()
+        } else {
+            pending = groups
         }
     }
 
@@ -152,8 +151,12 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
         item(key = "card") {
             FolderDropCard(
                 files = sources.size,
-                ready = sources.isNotEmpty(),
+                ready = celebrating,
                 onClick = { optionsOpen = true },
+                onDone = {
+                    ConvertPicker.clear()
+                    celebrating = false
+                },
             )
         }
 
@@ -191,9 +194,17 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
                 group = group,
                 onFormat = { preset ->
                     queue(group.records, preset)
-                    pending = pending.drop(1)
+                    if (pending.size == 1) {
+                        pending = emptyList()
+                        celebrating = true
+                    } else {
+                        pending = pending.drop(1)
+                    }
                 },
-                onSkip = { pending = pending.drop(1) },
+                onSkip = {
+                    pending = pending.drop(1)
+                    if (pending.isEmpty()) ConvertPicker.clear()
+                },
             )
         }
     }

@@ -56,6 +56,7 @@ fun FolderDropCard(
     ready: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDone: () -> Unit = {},
 ) {
     val flap = remember { Animatable(1f) }
     val paper = remember { Animatable(27f) }
@@ -79,6 +80,8 @@ fun FolderDropCard(
         flap.animateTo(1f, spring(dampingRatio = 0.9f, stiffness = 380f))
         badge.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 420f))
         trace.animateTo(0f, tween(250))
+        delay(900)
+        onDone()
     }
 
     Surface(
