@@ -35,22 +35,27 @@ object Requests {
         val multi = post.items.size > 1
         val video = item.kind == MediaKind.Video
         val gif = item.kind == MediaKind.Gif
+        val audio = item.kind == MediaKind.Audio
         val label = when {
             video && multi -> context.getString(R.string.item_video_numbered, index + 1)
             video -> context.getString(R.string.item_video)
             gif && multi -> context.getString(R.string.item_gif_numbered, index + 1)
             gif -> context.getString(R.string.item_gif)
+            audio && multi -> context.getString(R.string.item_audio_numbered, index + 1)
+            audio -> context.getString(R.string.item_audio)
             multi -> context.getString(R.string.item_photo_numbered, index + 1)
             else -> context.getString(R.string.item_photo)
         }
         val extension = when {
             video -> "mp4"
             gif -> "gif"
+            audio -> "mp3"
             else -> imageExtension(item.url)
         }
         val mimeType = when {
             video -> "video/mp4"
             gif -> "image/gif"
+            audio -> "audio/mpeg"
             extension == "jpg" -> "image/jpeg"
             else -> "image/$extension"
         }
