@@ -21,6 +21,18 @@ android {
         }
     }
 
+    flavorDimensions += "channel"
+    productFlavors {
+        create("normal") {
+            dimension = "channel"
+        }
+        create("dev") {
+            dimension = "channel"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
