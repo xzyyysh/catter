@@ -1,20 +1,31 @@
 package f3l1x.catter.ui.home
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -28,9 +39,14 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -124,6 +140,37 @@ private const val PUFF_MIRROR = 396f
 
 @Composable
 fun CatTitleGlyph(style: TextStyle, color: Color) {
+    var showCat by rememberSaveable { mutableStateOf(true) }
+
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val glyphWidth = remember(style) { measurer.measure("e", style).size.width.toFloat() }
+    val slotWidth = glyphWidth * 2.55f
+    val slotHeight = slotWidth * 298f / 400f
+
+    Box(
+        modifier = Modifier
+            .width(with(density) { slotWidth.toDp() })
+            .height(with(density) { slotHeight.toDp() })
+            .clickable { showCat = !showCat },
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(
+            targetState = showCat,
+            animationSpec = tween(320),
+            label = "title_glyph",
+        ) { cat ->
+            if (cat) {
+                BouncingCatGlyph(style = style, color = color)
+            } else {
+                GlitchGlyph(style = style, color = color)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BouncingCatGlyph(style: TextStyle, color: Color) {
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val glyphWidth = remember(style) { measurer.measure("e", style).size.width.toFloat() }
@@ -273,4 +320,82 @@ private fun bezier(x1: Float, y1: Float, x2: Float, y2: Float, x: Float): Float 
     return 3f * guess * (1f - guess).pow(2) * y1 +
         3f * guess.pow(2) * (1f - guess) * y2 +
         guess.pow(3)
+}
+
+private val GlitchGlyphs = listOf("e", "é", "è", "ê", "ë", "ē", "ė", "ę", "ε", "е")
+
+private data class GlitchFrame(
+    val glyph: String,
+    val offsetY: androidx.compose.ui.unit.Dp = 0.dp,
+    val scale: Float = 1f,
+    val rotation: Float = 0f,
+)
+
+private val RestFrame = GlitchFrame("e")
+
+@Composable
+private fun GlitchGlyph(style: TextStyle, color: Color) {
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val glyphWidth = remember(style) { measurer.measure("e", style).size.width }
+    var frame by remember { mutableStateOf(RestFrame) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(Random.nextLong(600L, 1100L))
+            frame = if (Random.nextFloat() < 0.4f) {
+                RestFrame
+            } else {
+                GlitchFrame(
+                    glyph = GlitchGlyphs.random(),
+                    offsetY = (Random.nextFloat() * 4f - 2f).dp,
+                    scale = 0.9f + Random.nextFloat() * 0.18f,
+                    rotation = Random.nextFloat() * 8f - 4f,
+                )
+            }
+        }
+    }
+
+    val offsetY by animateDpAsState(
+        targetValue = frame.offsetY,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow),
+        label = "glitch_offset",
+    )
+    val scale by animateFloatAsState(
+        targetValue = frame.scale,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow),
+        label = "glitch_scale",
+    )
+    val rotation by animateFloatAsState(
+        targetValue = frame.rotation,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow),
+        label = "glitch_rotation",
+    )
+
+    Box(
+        modifier = Modifier
+            .width(with(density) { glyphWidth.toDp() })
+            .graphicsLayer {
+                translationY = offsetY.toPx()
+                scaleX = scale
+                scaleY = scale
+                rotationZ = rotation
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(
+            targetState = frame.glyph,
+            animationSpec = tween(280),
+            label = "glitch_glyph",
+        ) { current ->
+            Text(
+                text = current,
+                style = style,
+                color = color,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Visible,
+            )
+        }
+    }
 }
