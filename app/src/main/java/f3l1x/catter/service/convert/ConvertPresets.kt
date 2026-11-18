@@ -10,12 +10,13 @@ data class ConvertPreset(
     val mimeType: String,
     val kind: MediaKind,
     val accepts: Set<ConvertSourceKind>,
-    val arguments: (input: String, output: String) -> List<String>,
+    val arguments: ((input: String, output: String) -> List<String>)? = null,
+    val targetBytes: Long = 0L,
 )
 
 object ConvertPresets {
 
-    val all: List<ConvertPreset> get() = listOf(MP3, FLAC, WAV, M4A, MP4, MKV, WEBP, PNG)
+    val all: List<ConvertPreset> get() = listOf(MP3, FLAC, WAV, M4A, MP4, MKV, DISCORD, WEBP, PNG)
 
     fun forKind(kind: ConvertSourceKind): List<ConvertPreset> =
         all.filter { kind in it.accepts }
@@ -100,6 +101,15 @@ object ConvertPresets {
         arguments = { input, output ->
             listOf("-i", input, "-map", "0", "-c", "copy", output)
         },
+    )
+
+    private val DISCORD = ConvertPreset(
+        label = "Discord 8MB",
+        extension = "mp4",
+        mimeType = "video/mp4",
+        kind = MediaKind.Video,
+        accepts = setOf(ConvertSourceKind.Video),
+        targetBytes = 8L * 1024 * 1024,
     )
 
     private val WEBP = ConvertPreset(

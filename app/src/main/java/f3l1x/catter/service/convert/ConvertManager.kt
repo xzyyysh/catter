@@ -114,19 +114,41 @@ object ConvertManager {
         val stamp = System.nanoTime()
         val input = File(context.cacheDir, "catter-convert-$stamp-src")
         val output = File(context.cacheDir, "catter-convert-$stamp.${job.preset.extension}")
+        val passLog = File(context.cacheDir, "catter-convert-$stamp-pass")
+
+        fun report(fraction: Float) {
+            _tasks.update { tasks ->
+                tasks.map { if (it.id == queued.id) it.copy(progress = fraction) else it }
+            }
+        }
 
         try {
             withContext(Dispatchers.IO) { stash(context, job.sourceUri, input) }
             val duration = runCatching { Converter.durationMs(input.absolutePath) }.getOrDefault(0L)
-            val arguments = buildList {
-                add("-y")
-                addAll(job.preset.arguments(input.absolutePath, output.absolutePath))
-            }
-
-            Converter.convert(arguments.toTypedArray(), duration) { fraction ->
-                _tasks.update { tasks ->
-                    tasks.map { if (it.id == queued.id) it.copy(progress = fraction) else it }
+            val target = job.preset.targetBytes
+            if (target > 0L) {
+                if (duration <= 0L) throw IOException("Media duration is unknown")
+                val seconds = duration / 1000.0
+                val videoKbps = ((target * 0.93 * 8.0) / seconds / 1000.0).toInt() - 128
+                if (videoKbps < 50) throw IOException("Video is too long to fit in 8MB")
+                val videoArgs = listOf("-c:v", "libx264", "-preset", "veryfast", "-b:v", "${videoKbps}k")
+                val pass1 = listOf("-y", "-i", input.absolutePath) + videoArgs +
+                    listOf("-pass", "1", "-passlogfile", passLog.absolutePath, "-an", "-f", "null", "/dev/null")
+                val pass2 = listOf("-y", "-i", input.absolutePath) + videoArgs +
+                    listOf(
+                        "-pass", "2", "-passlogfile", passLog.absolutePath,
+                        "-c:a", "aac", "-b:a", "128k",
+                        "-movflags", "+faststart",
+                        output.absolutePath,
+                    )
+                Converter.convert(pass1.toTypedArray(), duration) { report(it * 0.5f) }
+                Converter.convert(pass2.toTypedArray(), duration) { report(0.5f + it * 0.5f) }
+            } else {
+                val arguments = buildList {
+                    add("-y")
+                    addAll(job.preset.arguments?.invoke(input.absolutePath, output.absolutePath).orEmpty())
                 }
+                Converter.convert(arguments.toTypedArray(), duration, ::report)
             }
 
             val fileName = Downloader.fileName(
@@ -171,6 +193,9 @@ object ConvertManager {
         } finally {
             input.delete()
             output.delete()
+            context.cacheDir
+                .listFiles { file -> file.name.startsWith(passLog.name) }
+                ?.forEach { it.delete() }
             _tasks.update { tasks -> tasks.filterNot { it.id == queued.id } }
         }
     }
