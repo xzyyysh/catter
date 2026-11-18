@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,49 +52,27 @@ import f3l1x.catter.service.convert.ConvertJob
 import f3l1x.catter.service.convert.ConvertManager
 import f3l1x.catter.service.convert.ConvertPreset
 import f3l1x.catter.service.convert.ConvertPresets
-import f3l1x.catter.service.convert.ConvertSourceKind
-import f3l1x.catter.service.download.DownloadFiles
+import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.ProgressLine
-import f3l1x.catter.ui.components.RemoteThumbnail
+import f3l1x.catter.util.Logger
 import f3l1x.catter.util.formatBytes
 import io.tabler.icons.TablerIcons
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import java.util.UUID
 import kotlin.math.roundToInt
-
-private data class SourceData(
-    val title: String,
-    val uri: String,
-    val mimeType: String?,
-    val fileName: String,
-    val thumbnailUrl: String,
-)
 
 @Composable
 fun ConvertScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val preferences = LocalAppPreferences.current
 
-    val records by DownloadStore.records.collectAsState()
     val tasks by ConvertManager.tasks.collectAsState()
     val failures by ConvertManager.failures.collectAsState()
+    val sources by ConvertPicker.selected.collectAsState()
 
-    var mode by rememberSaveable { mutableStateOf(0) }
-    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    var imported by remember { mutableStateOf<Pair<Uri, String>?>(null) }
+    var optionsOpen by rememberSaveable { mutableStateOf(false) }
     var preset by remember { mutableStateOf<ConvertPreset?>(null) }
-    var existence by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var message by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(records) {
-        while (true) {
-            existence = withContext(Dispatchers.IO) {
-                records.associate { it.id to DownloadFiles.exists(context, it) }
-            }
-            delay(1200)
-        }
-    }
 
     LaunchedEffect(message) {
         if (message != null) {
@@ -104,39 +83,37 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            imported = uri to displayName(context, uri)
-            selectedId = null
+            importFile(context, uri)
         }
     }
 
-    val source = when {
-        mode == 0 -> records.firstOrNull { it.id == selectedId }?.let {
-            SourceData(it.title, it.uri, it.mimeType, it.fileName, it.thumbnailUrl)
-        }
-        else -> imported?.let {
-            SourceData(it.second, it.first.toString(), context.contentResolver.getType(it.first), it.second, "")
+    val presets = remember(sources) {
+        val kinds = sources.mapNotNull { ConvertPresets.sourceKind(it.mimeType, it.fileName) }
+        val accepted = kinds.map { setOf(it) }
+        ConvertPresets.all.filter { candidate ->
+            accepted.all { candidate.accepts.intersect(it).isNotEmpty() }
         }
     }
 
-    val kind = source?.let { ConvertPresets.sourceKind(it.mimeType, it.fileName) }
-    val presets = kind?.let { ConvertPresets.forKind(it) } ?: emptyList()
-    LaunchedEffect(kind) {
-        if (kind == null || preset !in presets) preset = null
+    LaunchedEffect(presets) {
+        if (preset !in presets) preset = null
     }
 
     fun add() {
-        val selectedSource = source ?: return
         val selectedPreset = preset ?: return
-        ConvertManager.start(
-            context,
-            ConvertJob(
-                sourceTitle = selectedSource.title,
-                sourceUri = selectedSource.uri,
-                preset = selectedPreset,
-                treeUri = preferences.saveTreeUri,
-                thumbnailUrl = selectedSource.thumbnailUrl,
-            ),
-        )
+        sources.forEach { record ->
+            ConvertManager.start(
+                context,
+                ConvertJob(
+                    sourceTitle = record.title,
+                    sourceUri = record.uri,
+                    preset = selectedPreset,
+                    treeUri = preferences.saveTreeUri,
+                    thumbnailUrl = record.thumbnailUrl,
+                ),
+            )
+        }
+        ConvertPicker.clear()
         preset = null
         message = context.getString(R.string.message_added_to_queue)
     }
@@ -156,58 +133,27 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        item(key = "mode") {
-            ModeSelector(
-                downloads = stringResource(R.string.converter_from_downloads),
-                import = stringResource(R.string.converter_import),
-                selected = mode,
-                onSelect = {
-                    mode = it
-                    selectedId = null
-                    imported = null
-                },
+        item(key = "card") {
+            FolderDropCard(
+                files = sources.size,
+                ready = sources.isNotEmpty(),
+                onClick = { optionsOpen = true },
             )
         }
 
-        if (mode == 0) {
-            val available = records.filter { existence[it.id] != false }
-            if (available.isEmpty()) {
-                item(key = "no-downloads") {
-                    Text(
-                        text = stringResource(R.string.downloads_empty),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            items(available, key = { "source-${it.id}" }) { record ->
-                DownloadSourceRow(
-                    record = record,
-                    selected = selectedId == record.id,
-                    onClick = { selectedId = if (selectedId == record.id) null else record.id },
-                )
-            }
-        } else {
-            item(key = "import") {
-                ImportRow(
-                    fileName = imported?.second,
-                    onChoose = { importer.launch(arrayOf("*/*")) },
+        if (sources.isNotEmpty() && presets.isEmpty()) {
+            item(key = "unsupported") {
+                Text(
+                    text = stringResource(R.string.converter_unsupported),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
 
-        source?.let { selected ->
+        if (presets.isNotEmpty()) {
             item(key = "format-label") {
                 SectionLabel(stringResource(R.string.converter_format))
-            }
-            if (kind == null) {
-                item(key = "unsupported") {
-                    Text(
-                        text = stringResource(R.string.converter_unsupported),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
             }
             items(presets, key = { "preset-${it.label}" }) { candidate ->
                 PresetRow(
@@ -250,143 +196,99 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-
-        if (source == null && tasks.isEmpty() && failures.isEmpty()) {
-            item(key = "empty") {
-                Text(
-                    text = stringResource(R.string.converter_empty),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 48.dp),
-                )
-            }
-        }
     }
-}
 
-@Composable
-private fun ModeSelector(downloads: String, import: String, selected: Int, onSelect: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ModeChip(text = downloads, selected = selected == 0, onClick = { onSelect(0) })
-        ModeChip(text = import, selected = selected == 1, onClick = { onSelect(1) })
-    }
-}
-
-@Composable
-private fun ModeChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun DownloadSourceRow(record: DownloadRecord, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    if (optionsOpen) {
+        CatterDialog(
+            title = stringResource(R.string.converter_source),
+            onDismissRequest = { optionsOpen = false },
         ) {
-            RemoteThumbnail(
-                url = record.thumbnailUrl,
-                modifier = Modifier
-                    .size(width = 76.dp, height = 44.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+            Spacer(Modifier.height(10.dp))
+            OptionRow(
+                icon = TablerIcons["download"],
+                text = stringResource(R.string.converter_from_downloads),
+                onClick = {
+                    optionsOpen = false
+                    ConvertPicker.open()
+                },
             )
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = record.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${record.format} · ${formatBytes(record.size)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = TablerIcons["check"],
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+            OptionRow(
+                icon = TablerIcons["file-import"],
+                text = stringResource(R.string.converter_import),
+                onClick = {
+                    optionsOpen = false
+                    importer.launch(arrayOf("*/*"))
+                },
+            )
         }
     }
 }
 
+private fun importFile(context: Context, uri: Uri) {
+    runCatching {
+        val name = displayName(context, uri)
+        val size = sizeOf(context, uri)
+        val mime = context.contentResolver.getType(uri).orEmpty()
+        val record = DownloadRecord(
+            id = UUID.randomUUID().toString(),
+            title = name.substringBeforeLast('.'),
+            author = "",
+            thumbnailUrl = "",
+            qualityLabel = "",
+            format = name.substringAfterLast('.', "").uppercase(),
+            mimeType = mime,
+            uri = uri.toString(),
+            fileName = name,
+            size = size,
+            createdAt = System.currentTimeMillis(),
+        )
+        DownloadStore.add(record)
+        ConvertPicker.select(record)
+    }.onFailure { Logger.w("import failed", it) }
+}
+
+private fun sizeOf(context: Context, uri: Uri): Long =
+    context.contentResolver
+        .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+        ?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getLong(0) else 0L
+        }
+        ?: 0L
+
+private fun displayName(context: Context, uri: Uri): String =
+    context.contentResolver
+        .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+        ?: uri.lastPathSegment
+        ?: "file"
+
 @Composable
-private fun ImportRow(fileName: String?, onChoose: () -> Unit) {
+private fun OptionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
-                .clickable(onClick = onChoose)
+                .clickable(onClick = onClick)
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = TablerIcons["file-import"],
+                imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.converter_choose_file),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                fileName?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
@@ -569,12 +471,3 @@ private fun SectionLabel(text: String) {
         modifier = Modifier.padding(top = 6.dp),
     )
 }
-
-private fun displayName(context: Context, uri: Uri): String =
-    context.contentResolver
-        .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        ?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
-        ?: uri.lastPathSegment
-        ?: "file"

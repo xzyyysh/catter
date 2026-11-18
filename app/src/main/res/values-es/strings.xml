@@ -147,6 +147,13 @@
 
     <!-- Converter -->
     <string name="converter_title">Convertidor</string>
+    <string name="converter_card_title">Convierte un archivo</string>
+    <string name="converter_card_subtitle">Toca para elegir un origen</string>
+    <string name="converter_choose_format">Elige un formato</string>
+    <string name="converter_send">Enviar</string>
+    <string name="downloads_select_title">Elegir archivos</string>
+    <string name="downloads_select_all">Seleccionar todo</string>
+    <string name="downloads_select_none">Deseleccionar todo</string>
     <string name="converter_source">Origen</string>
     <string name="converter_from_downloads">Desde descargas</string>
     <string name="converter_import">Importar</string>
@@ -155,6 +162,10 @@
     <string name="converter_add">Añadir a la cola</string>
     <string name="converter_empty">Elige un archivo para convertir</string>
     <string name="converter_unsupported">Este archivo no se puede convertir</string>
+    <plurals name="converter_ready">
+        <item quantity="one">%1$d archivo listo</item>
+        <item quantity="other">%1$d archivos listos</item>
+    </plurals>
 
     <!-- Theme picker -->
     <string name="theme_picker_title">Tema</string>

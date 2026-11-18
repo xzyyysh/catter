@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -63,6 +64,7 @@ import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.CatterTextField
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.ui.components.RemoteThumbnail
+import f3l1x.catter.ui.convert.ConvertPicker
 import f3l1x.catter.util.Logger
 import f3l1x.catter.util.formatBytes
 import f3l1x.catter.util.formatDate
@@ -84,6 +86,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
     val records by DownloadStore.records.collectAsState()
     val tasks by DownloadManager.tasks.collectAsState()
     val failures by DownloadManager.failures.collectAsState()
+    val picking by ConvertPicker.active.collectAsState()
 
     var existence by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var expandedId by remember { mutableStateOf<String?>(null) }
@@ -92,6 +95,11 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
     var message by remember { mutableStateOf<String?>(null) }
     var failedDetails by remember { mutableStateOf<DownloadManager.Failure?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
+    var selection by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(picking) {
+        if (picking) selection = emptySet()
+    }
 
     LaunchedEffect(records) {
         while (true) {
@@ -156,104 +164,148 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 108.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item(key = "header") {
-            DownloadsHeader(
-                count = records.size,
-                totalSize = records.sumOf { it.size },
-                onClearAll = { confirmClearAll = true },
-            )
+    val available = records.filter { existence[it.id] != false }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 108.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item(key = "header") {
+                if (picking) {
+                    SelectionHeader(
+                        count = selection.size,
+                        allSelected = available.isNotEmpty() && selection.size == available.size,
+                        onSelectAll = {
+                            selection = if (selection.size == available.size) emptySet() else available.map { it.id }.toSet()
+                        },
+                        onCancel = { ConvertPicker.cancel() },
+                    )
+                } else {
+                    DownloadsHeader(
+                        count = records.size,
+                        totalSize = records.sumOf { it.size },
+                        onClearAll = { confirmClearAll = true },
+                    )
+                }
+            }
+
+            if (records.isNotEmpty() && !picking) {
+                item(key = "search") {
+                    CatterTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = stringResource(R.string.downloads_search),
+                        leadingIcon = TablerIcons["search"],
+                        trailingIcon = if (query.isEmpty()) null else TablerIcons.X,
+                        trailingContentDescription = if (query.isEmpty()) {
+                            null
+                        } else {
+                            stringResource(R.string.action_clear)
+                        },
+                        onTrailingClick = if (query.isEmpty()) null else ({ query = "" }),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    )
+                }
+            }
+
+            message?.let { text ->
+                item(key = "message") {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            if (!picking && tasks.isNotEmpty()) {
+                item(key = "queue") { SectionLabel(stringResource(R.string.downloads_section_queue)) }
+                items(tasks, key = { "task-${it.id}" }) { task ->
+                    QueueRow(task = task, onCancel = { DownloadManager.cancel(task.id) })
+                }
+            }
+
+            if (!picking && failures.isNotEmpty()) {
+                item(key = "failed") { SectionLabel(stringResource(R.string.downloads_section_failed)) }
+                items(failures, key = { "failure-${it.id}" }) { failure ->
+                    FailedRow(
+                        failure = failure,
+                        onDetails = { failedDetails = failure },
+                        onRetry = { DownloadManager.retry(context, failure.id) },
+                        onDismiss = { DownloadManager.dismissFailure(failure.id) },
+                    )
+                }
+            }
+
+            if (picking) {
+                items(available, key = { "record-${it.id}" }) { record ->
+                    SelectionRow(
+                        record = record,
+                        selected = record.id in selection,
+                        onClick = {
+                            selection = if (selection == setOf(record.id)) emptySet() else setOf(record.id)
+                        },
+                    )
+                }
+            } else if (filtered.isNotEmpty()) {
+                item(key = "history") { SectionLabel(stringResource(R.string.downloads_section_history)) }
+                items(filtered, key = { "record-${it.id}" }) { record ->
+                    HistoryRow(
+                        record = record,
+                        missing = existence[record.id] == false,
+                        expanded = expandedId == record.id,
+                        onExpand = { expanded -> expandedId = if (expanded) record.id else null },
+                        onLocate = {
+                            expandedId = null
+                            locate(record)
+                        },
+                        onShare = {
+                            expandedId = null
+                            share(record)
+                        },
+                        onDelete = {
+                            expandedId = null
+                            pendingDelete = record
+                        },
+                    )
+                }
+            } else if (records.isNotEmpty()) {
+                item(key = "no-matches") {
+                    Text(
+                        text = stringResource(R.string.downloads_no_matches),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+
+            if (!picking && tasks.isEmpty() && records.isEmpty() && failures.isEmpty()) {
+                item(key = "empty") { EmptyState() }
+            }
         }
 
-        if (records.isNotEmpty()) {
-            item(key = "search") {
-                CatterTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = stringResource(R.string.downloads_search),
-                    leadingIcon = TablerIcons["search"],
-                    trailingIcon = if (query.isEmpty()) null else TablerIcons.X,
-                    trailingContentDescription = if (query.isEmpty()) {
-                        null
-                    } else {
-                        stringResource(R.string.action_clear)
+        if (picking) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SelectionCancelButton(onCancel = { ConvertPicker.cancel() })
+                SelectionSendButton(
+                    count = selection.size,
+                    onSend = {
+                        ConvertPicker.confirm(available.filter { it.id in selection })
                     },
-                    onTrailingClick = if (query.isEmpty()) null else ({ query = "" }),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 )
             }
-        }
-
-        message?.let { text ->
-            item(key = "message") {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-
-        if (tasks.isNotEmpty()) {
-            item(key = "queue") { SectionLabel(stringResource(R.string.downloads_section_queue)) }
-            items(tasks, key = { "task-${it.id}" }) { task ->
-                QueueRow(task = task, onCancel = { DownloadManager.cancel(task.id) })
-            }
-        }
-
-        if (failures.isNotEmpty()) {
-            item(key = "failed") { SectionLabel(stringResource(R.string.downloads_section_failed)) }
-            items(failures, key = { "failure-${it.id}" }) { failure ->
-                FailedRow(
-                    failure = failure,
-                    onDetails = { failedDetails = failure },
-                    onRetry = { DownloadManager.retry(context, failure.id) },
-                    onDismiss = { DownloadManager.dismissFailure(failure.id) },
-                )
-            }
-        }
-
-        if (filtered.isNotEmpty()) {
-            item(key = "history") { SectionLabel(stringResource(R.string.downloads_section_history)) }
-            items(filtered, key = { "record-${it.id}" }) { record ->
-                HistoryRow(
-                    record = record,
-                    missing = existence[record.id] == false,
-                    expanded = expandedId == record.id,
-                    onExpand = { expanded -> expandedId = if (expanded) record.id else null },
-                    onLocate = {
-                        expandedId = null
-                        locate(record)
-                    },
-                    onShare = {
-                        expandedId = null
-                        share(record)
-                    },
-                    onDelete = {
-                        expandedId = null
-                        pendingDelete = record
-                    },
-                )
-            }
-        } else if (records.isNotEmpty()) {
-            item(key = "no-matches") {
-                Text(
-                    text = stringResource(R.string.downloads_no_matches),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-            }
-        }
-
-        if (tasks.isEmpty() && records.isEmpty() && failures.isEmpty()) {
-            item(key = "empty") { EmptyState() }
         }
     }
 
@@ -386,6 +438,182 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
                     clipboard.setPrimaryClip(ClipData.newPlainText("download error", failure.message))
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun SelectionHeader(
+    count: Int,
+    allSelected: Boolean,
+    onSelectAll: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.downloads_select_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            if (count > 0) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        TextButton(onClick = onSelectAll) {
+            Text(
+                text = stringResource(
+                    if (allSelected) R.string.downloads_select_none else R.string.downloads_select_all,
+                ),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable(onClick = onCancel)
+                .padding(8.dp),
+        ) {
+            Icon(
+                imageVector = TablerIcons.X,
+                contentDescription = stringResource(R.string.action_cancel),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionRow(record: DownloadRecord, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RemoteThumbnail(
+                url = record.thumbnailUrl,
+                modifier = Modifier
+                    .size(width = 76.dp, height = 44.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = record.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${record.format} · ${formatBytes(record.size)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = TablerIcons["check"],
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectionCancelButton(onCancel: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shadowElevation = 8.dp,
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable(onClick = onCancel)
+                .padding(12.dp),
+        ) {
+            Icon(
+                imageVector = TablerIcons.X,
+                contentDescription = stringResource(R.string.action_cancel),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionSendButton(count: Int, onSend: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (count > 0) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
+        shadowElevation = 8.dp,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .clickable(enabled = count > 0, onClick = onSend),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = TablerIcons["send"],
+                contentDescription = null,
+                tint = if (count > 0) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.converter_send),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (count > 0) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+            if (count > 0) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                )
+            }
         }
     }
 }

@@ -72,6 +72,7 @@ import f3l1x.catter.R
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.download.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
+import f3l1x.catter.ui.convert.ConvertPicker
 import f3l1x.catter.ui.convert.ConvertScreen
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
@@ -106,6 +107,18 @@ fun CatterApp(
     LaunchedEffect(Unit) { appeared = true }
     LaunchedEffect(incomingLink) {
         if (incomingLink != null) current = CatterDestination.Home
+    }
+
+    var wasPicking by remember { mutableStateOf(false) }
+    val picking by ConvertPicker.active.collectAsState()
+    LaunchedEffect(picking) {
+        if (picking) {
+            wasPicking = true
+            current = CatterDestination.Downloads
+        } else if (wasPicking) {
+            wasPicking = false
+            current = CatterDestination.Convert
+        }
     }
 
     Box(
