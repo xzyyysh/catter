@@ -69,6 +69,11 @@ object ConvertManager {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
         _tasks.update { it + Task(id, job.sourceTitle, job.preset.label) }
+        DownloadNotifications.ensureChannels(appContext)
+        ConvertNotifications.ensureChannels(appContext)
+        runCatching { ConvertService.start(appContext) }
+            .onFailure { Logger.w("convert service start failed", it) }
+
         queue.addLast(Request(id, job))
         if (worker?.isActive != true) worker = scope.launch { drain(appContext) }
         return id
@@ -101,6 +106,7 @@ object ConvertManager {
             active = null
             running = null
         }
+        ConvertService.stop(context)
     }
 
     private suspend fun run(context: Context, queued: Request) {
@@ -147,12 +153,12 @@ object ConvertManager {
                     createdAt = System.currentTimeMillis(),
                 ),
             )
-            DownloadNotifications.completed(context, DownloadStore.records.value.first { it.id == queued.id })
+            ConvertNotifications.completed(context, DownloadStore.records.value.first { it.id == queued.id })
         } catch (cancelled: CancellationException) {
             Logger.d("conversion cancelled: ${job.sourceTitle}")
         } catch (throwable: Throwable) {
             Logger.e("conversion failed: ${job.sourceTitle}", throwable)
-            DownloadNotifications.failed(context, job.sourceTitle, throwable.message)
+            ConvertNotifications.failed(context, job.sourceTitle, throwable.message)
             _failures.update { failures ->
                 failures + Failure(
                     id = queued.id,

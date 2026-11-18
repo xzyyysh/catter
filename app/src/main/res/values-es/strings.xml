@@ -173,10 +173,15 @@
     <string name="notification_channel_progress_description">Progreso de las descargas activas</string>
     <string name="notification_channel_result">Resultados de descargas</string>
     <string name="notification_channel_result_description">Te avisa cuando una descarga termina o falla</string>
+    <string name="notification_channel_convert_progress">Progreso de conversión</string>
+    <string name="notification_channel_convert_progress_description">Progreso de las conversiones activas</string>
     <string name="notification_preparing">Preparando %1$s</string>
     <string name="notification_preparing_download">Preparando la descarga</string>
     <string name="notification_complete">Descarga completada</string>
     <string name="notification_failed">La descarga falló</string>
+    <string name="notification_convert_running">Convirtiendo %1$s</string>
+    <string name="notification_convert_complete">Conversión completada</string>
+    <string name="notification_convert_failed">La conversión falló</string>
     <string name="notification_more">+%1$d más</string>
 
     <!-- Messages -->
