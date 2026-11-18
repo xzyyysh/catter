@@ -72,6 +72,7 @@ import f3l1x.catter.R
 import f3l1x.catter.data.LocalAppPreferences
 import f3l1x.catter.service.download.DownloadManager
 import f3l1x.catter.ui.components.ProgressLine
+import f3l1x.catter.ui.convert.ConvertScreen
 import f3l1x.catter.ui.downloads.DownloadsScreen
 import f3l1x.catter.ui.home.HomeScreen
 import f3l1x.catter.ui.components.UpdateDialog
@@ -85,6 +86,7 @@ import kotlin.math.roundToInt
 private enum class CatterDestination(@param:StringRes val labelRes: Int, val icon: ImageVector) {
     Home(R.string.nav_home, TablerIcons.Home),
     Downloads(R.string.nav_downloads, TablerIcons["download"]),
+    Convert(R.string.nav_convert, TablerIcons["transform"]),
     Settings(R.string.nav_settings, TablerIcons.Settings),
 }
 
@@ -139,6 +141,7 @@ fun CatterApp(
                             onIncomingLinkConsumed = onIncomingLinkConsumed,
                         )
                         CatterDestination.Downloads -> DownloadsScreen()
+                        CatterDestination.Convert -> ConvertScreen()
                         CatterDestination.Settings -> SettingsScreen()
                     }
                 }

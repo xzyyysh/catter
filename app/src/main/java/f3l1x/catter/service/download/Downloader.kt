@@ -190,7 +190,7 @@ object Downloader {
         }
     }
 
-    private fun publish(
+    internal fun publish(
         context: Context,
         source: File,
         fileName: String,

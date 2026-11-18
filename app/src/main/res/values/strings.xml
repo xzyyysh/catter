@@ -19,6 +19,7 @@
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_downloads">Downloads</string>
+    <string name="nav_convert">Convert</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Home -->
@@ -143,6 +144,17 @@
     <string name="settings_debug">Debug</string>
     <string name="settings_debug_logs">Debug logs</string>
     <string name="settings_debug_logs_description">Write verbose logs to logcat, including release builds</string>
+
+    <!-- Converter -->
+    <string name="converter_title">Converter</string>
+    <string name="converter_source">Source</string>
+    <string name="converter_from_downloads">From downloads</string>
+    <string name="converter_import">Import</string>
+    <string name="converter_choose_file">Choose file</string>
+    <string name="converter_format">Format</string>
+    <string name="converter_add">Add to queue</string>
+    <string name="converter_empty">Select a file to convert</string>
+    <string name="converter_unsupported">This file cannot be converted</string>
 
     <!-- Theme picker -->
     <string name="theme_picker_title">Theme</string>

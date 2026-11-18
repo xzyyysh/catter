@@ -24,7 +24,7 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 jaudiotagger = { group = "org.jaudiotagger", name = "jaudiotagger", version.ref = "jaudiotagger" }
-ffmpegkit-full = { group = "dev.ffmpegkit-maintained", name = "ffmpeg-kit-full", version.ref = "ffmpegkit" }
+ffmpegkit-full-gpl = { group = "dev.ffmpegkit-maintained", name = "ffmpeg-kit-full-gpl", version.ref = "ffmpegkit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

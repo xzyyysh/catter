@@ -87,5 +87,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.documentfile)
     implementation(libs.jaudiotagger)
-    implementation(libs.ffmpegkit.full)
+    implementation(libs.ffmpegkit.full.gpl)
 }

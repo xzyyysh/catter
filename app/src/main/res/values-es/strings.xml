@@ -19,6 +19,7 @@
     <!-- Navigation -->
     <string name="nav_home">Inicio</string>
     <string name="nav_downloads">Descargas</string>
+    <string name="nav_convert">Convertir</string>
     <string name="nav_settings">Ajustes</string>
 
     <!-- Home -->
@@ -143,6 +144,17 @@
     <string name="settings_debug">Depuración</string>
     <string name="settings_debug_logs">Registros de depuración</string>
     <string name="settings_debug_logs_description">Escribe registros detallados en logcat, también en compilaciones de release</string>
+
+    <!-- Converter -->
+    <string name="converter_title">Convertidor</string>
+    <string name="converter_source">Origen</string>
+    <string name="converter_from_downloads">Desde descargas</string>
+    <string name="converter_import">Importar</string>
+    <string name="converter_choose_file">Elegir archivo</string>
+    <string name="converter_format">Formato</string>
+    <string name="converter_add">Añadir a la cola</string>
+    <string name="converter_empty">Elige un archivo para convertir</string>
+    <string name="converter_unsupported">Este archivo no se puede convertir</string>
 
     <!-- Theme picker -->
     <string name="theme_picker_title">Tema</string>
