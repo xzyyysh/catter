@@ -35,11 +35,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +55,7 @@ import f3l1x.catter.service.convert.ConvertJob
 import f3l1x.catter.service.convert.ConvertManager
 import f3l1x.catter.service.convert.ConvertPreset
 import f3l1x.catter.service.convert.ConvertPresets
+import f3l1x.catter.service.convert.ConvertSourceKind
 import f3l1x.catter.ui.components.CatterDialog
 import f3l1x.catter.ui.components.ProgressLine
 import f3l1x.catter.util.Logger
@@ -60,6 +64,11 @@ import io.tabler.icons.TablerIcons
 import kotlinx.coroutines.delay
 import java.util.UUID
 import kotlin.math.roundToInt
+
+private data class FormatGroup(
+    val kind: ConvertSourceKind,
+    val records: List<DownloadRecord>,
+)
 
 @Composable
 fun ConvertScreen(modifier: Modifier = Modifier) {
@@ -71,7 +80,7 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
     val sources by ConvertPicker.selected.collectAsState()
 
     var optionsOpen by rememberSaveable { mutableStateOf(false) }
-    var preset by remember { mutableStateOf<ConvertPreset?>(null) }
+    var pending by remember { mutableStateOf<List<FormatGroup>>(emptyList()) }
     var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(message) {
@@ -87,35 +96,42 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    val presets = remember(sources) {
-        val kinds = sources.mapNotNull { ConvertPresets.sourceKind(it.mimeType, it.fileName) }
-        val accepted = kinds.map { setOf(it) }
-        ConvertPresets.all.filter { candidate ->
-            accepted.all { candidate.accepts.intersect(it).isNotEmpty() }
+    LaunchedEffect(sources) {
+        if (sources.isEmpty()) return@LaunchedEffect
+
+        val grouped = sources.groupBy { ConvertPresets.sourceKind(it.mimeType, it.fileName) }
+        pending = grouped.entries
+            .filter { it.key != null }
+            .map { FormatGroup(it.key!!, it.value) }
+        if (grouped.containsKey(null)) {
+            message = context.getString(R.string.converter_unsupported)
         }
     }
 
-    LaunchedEffect(presets) {
-        if (preset !in presets) preset = null
+    LaunchedEffect(pending) {
+        if (pending.isEmpty() && sources.isNotEmpty()) {
+            ConvertPicker.clear()
+        }
     }
 
-    fun add() {
-        val selectedPreset = preset ?: return
-        sources.forEach { record ->
+    fun queue(group: List<DownloadRecord>, preset: ConvertPreset) {
+        group.forEach { record ->
             ConvertManager.start(
                 context,
                 ConvertJob(
                     sourceTitle = record.title,
                     sourceUri = record.uri,
-                    preset = selectedPreset,
+                    preset = preset,
                     treeUri = preferences.saveTreeUri,
                     thumbnailUrl = record.thumbnailUrl,
                 ),
             )
         }
-        ConvertPicker.clear()
-        preset = null
-        message = context.getString(R.string.message_added_to_queue)
+        message = if (group.size == 1) {
+            context.getString(R.string.message_added_to_queue)
+        } else {
+            context.getString(R.string.message_added_to_queue_count, group.size)
+        }
     }
 
     LazyColumn(
@@ -139,35 +155,6 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
                 ready = sources.isNotEmpty(),
                 onClick = { optionsOpen = true },
             )
-        }
-
-        if (sources.isNotEmpty() && presets.isEmpty()) {
-            item(key = "unsupported") {
-                Text(
-                    text = stringResource(R.string.converter_unsupported),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-
-        if (presets.isNotEmpty()) {
-            item(key = "format-label") {
-                SectionLabel(stringResource(R.string.converter_format))
-            }
-            items(presets, key = { "preset-${it.label}" }) { candidate ->
-                PresetRow(
-                    preset = candidate,
-                    selected = preset == candidate,
-                    onClick = { preset = if (preset == candidate) null else candidate },
-                )
-            }
-            item(key = "add") {
-                AddButton(
-                    enabled = preset != null,
-                    onClick = { add() },
-                )
-            }
         }
 
         message?.let { text ->
@@ -195,6 +182,19 @@ fun ConvertScreen(modifier: Modifier = Modifier) {
                     onDismiss = { ConvertManager.dismissFailure(failure.id) },
                 )
             }
+        }
+    }
+
+    pending.firstOrNull()?.let { group ->
+        key(group.kind) {
+            FormatDialog(
+                group = group,
+                onFormat = { preset ->
+                    queue(group.records, preset)
+                    pending = pending.drop(1)
+                },
+                onSkip = { pending = pending.drop(1) },
+            )
         }
     }
 
@@ -265,7 +265,101 @@ private fun displayName(context: Context, uri: Uri): String =
         ?: "file"
 
 @Composable
-private fun OptionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
+private fun FormatDialog(
+    group: FormatGroup,
+    onFormat: (ConvertPreset) -> Unit,
+    onSkip: () -> Unit,
+) {
+    CatterDialog(
+        title = stringResource(R.string.converter_format),
+        onDismissRequest = onSkip,
+        actions = { dismiss ->
+            TextButton(onClick = dismiss) {
+                Text(
+                    text = stringResource(R.string.action_cancel),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        },
+    ) {
+        Spacer(Modifier.height(10.dp))
+        val single = group.records.size == 1
+        if (single) {
+            val record = group.records.first()
+            Text(
+                text = record.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = listOf(
+                    record.format,
+                    record.qualityLabel,
+                    formatBytes(record.size),
+                ).filter { it.isNotBlank() }.joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                text = pluralStringResource(
+                    R.plurals.downloads_summary,
+                    group.records.size,
+                    group.records.size,
+                    formatBytes(group.records.sumOf { it.size }),
+                ),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        ConvertPresets.forKind(group.kind).forEach { preset ->
+            FormatOptionRow(preset = preset, onClick = { onFormat(preset) })
+        }
+    }
+}
+
+@Composable
+private fun FormatOptionRow(preset: ConvertPreset, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = preset.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = preset.extension.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = TablerIcons["chevron-right"],
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun OptionRow(icon: ImageVector, text: String, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -290,75 +384,6 @@ private fun OptionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tex
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
-    }
-}
-
-@Composable
-private fun PresetRow(preset: ConvertPreset, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = preset.label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = preset.extension.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = TablerIcons["check"],
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddButton(enabled: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (enabled) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-    ) {
-        Text(
-            text = stringResource(R.string.converter_add),
-            style = MaterialTheme.typography.titleSmall,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(vertical = 14.dp),
-        )
     }
 }
 
