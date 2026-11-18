@@ -144,20 +144,34 @@ fun CatTitleGlyph(style: TextStyle, color: Color) {
 
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
-    val glyphWidth = remember(style) { measurer.measure("e", style).size.width.toFloat() }
-    val slotWidth = glyphWidth * 2.55f
-    val slotHeight = slotWidth * 298f / 400f
+    val glyph = remember(style) { measurer.measure("e", style).size }
+    val glyphWidth = glyph.width.toFloat()
+    val glyphHeight = glyph.height.toFloat()
+    val catWidth = glyphWidth * 2.55f
+    val catHeight = catWidth * 298f / 400f
+
+    val boxWidth by animateDpAsState(
+        targetValue = with(density) { (if (showCat) catWidth else glyphWidth * 1.04f).toDp() },
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+        label = "glyph_width",
+    )
+    val boxHeight by animateDpAsState(
+        targetValue = with(density) { (if (showCat) catHeight else glyphHeight).toDp() },
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+        label = "glyph_height",
+    )
 
     Box(
         modifier = Modifier
-            .width(with(density) { slotWidth.toDp() })
-            .height(with(density) { slotHeight.toDp() })
+            .width(boxWidth)
+            .height(boxHeight)
+            .clipToBounds()
             .clickable { showCat = !showCat },
         contentAlignment = Alignment.Center,
     ) {
         Crossfade(
             targetState = showCat,
-            animationSpec = tween(320),
+            animationSpec = tween(280),
             label = "title_glyph",
         ) { cat ->
             if (cat) {
