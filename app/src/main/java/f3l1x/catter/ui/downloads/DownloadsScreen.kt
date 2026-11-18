@@ -182,7 +182,6 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
             item(key = "header") {
                 if (picking) {
                     SelectionHeader(
-                        count = selection.size,
                         allSelected = available.isNotEmpty() && selection.size == available.size,
                         onSelectAll = {
                             selection = if (selection.size == available.size) emptySet() else available.map { it.id }.toSet()
@@ -446,7 +445,6 @@ fun DownloadsScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SelectionHeader(
-    count: Int,
     allSelected: Boolean,
     onSelectAll: () -> Unit,
     onCancel: () -> Unit,
@@ -457,20 +455,12 @@ private fun SelectionHeader(
             .padding(bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.downloads_select_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            if (count > 0) {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        Text(
+            text = stringResource(R.string.downloads_select_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f),
+        )
         TextButton(onClick = onSelectAll) {
             Text(
                 text = stringResource(

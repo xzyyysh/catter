@@ -121,6 +121,12 @@ fun CatterApp(
         }
     }
 
+    LaunchedEffect(current) {
+        if (current != CatterDestination.Downloads && ConvertPicker.active.value) {
+            ConvertPicker.cancel()
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
